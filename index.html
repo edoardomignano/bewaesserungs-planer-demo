@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>PVC WELT Bewässerungsplaner Demo v0.4</title>
+  <title>PVC WELT Bewässerungsplaner Demo v0.5</title>
   <style>
     :root{
       --bg:#0b0f14; --panel:#121926; --muted:#9aa4b2; --text:#e6edf3;
@@ -14,7 +14,7 @@
     header{padding:12px 16px;border-bottom:1px solid rgba(255,255,255,.08);display:flex;align-items:center;justify-content:space-between;gap:12px;}
     .title{font-weight:950;letter-spacing:.2px;}
     .sub{color:var(--muted);font-size:12px;margin-top:2px;}
-    .wrap{display:grid;grid-template-columns:360px 1fr 340px;gap:12px;padding:12px;height:calc(100vh - 54px);}
+    .wrap{display:grid;grid-template-columns:380px 1fr 320px;gap:12px;padding:12px;height:calc(100vh - 54px);}
     .panel{background:var(--panel);border:1px solid rgba(255,255,255,.08);border-radius:14px;padding:12px;overflow:auto;}
     canvas{width:100%;height:100%;background:#070a10;border-radius:14px;border:1px solid rgba(255,255,255,.08);}
     h3{margin:0 0 10px;font-size:14px;color:#dbe7ff;}
@@ -29,7 +29,6 @@
     button.ok{background:linear-gradient(135deg, rgba(52,211,153,.25), rgba(52,211,153,.08));border-color:rgba(52,211,153,.35);}
     button.vio{background:linear-gradient(135deg, rgba(167,139,250,.25), rgba(167,139,250,.08));border-color:rgba(167,139,250,.35);}
     button:disabled{opacity:.45;cursor:not-allowed;}
-    .toolgrid{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
     .hint{font-size:12px;color:var(--muted);line-height:1.35;}
     .sep{height:1px;background:rgba(255,255,255,.08);margin:12px 0;}
     .mono{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;}
@@ -50,7 +49,7 @@
     .step:active{transform:scale(0.995);}
     .step .sTitle{font-weight:900;font-size:13px;}
     .step .sText{font-size:12px;color:var(--muted);margin-top:4px;line-height:1.3;}
-    .step .go{font-size:12px;color:rgba(76,201,240,.9);margin-top:6px;}
+    .step .mini{margin-top:8px;display:flex;gap:8px;flex-wrap:wrap;}
     .kpi{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px;}
     .card{border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:10px;background:rgba(0,0,0,.18);}
     .card .k{color:var(--muted);font-size:12px;}
@@ -67,12 +66,12 @@
 <body>
 <header>
   <div>
-    <div class="title">PVC WELT Bewässerungsplaner Demo <span class="mono">v0.4</span></div>
-    <div class="sub">Schritt-für-Schritt • Zonen wie „Sperrzonen“ • Snap-Rohre • Auto-Regner • proportionaler Plan</div>
+    <div class="title">PVC WELT Bewässerungsplaner Demo <span class="mono">v0.5</span></div>
+    <div class="sub">Schritt-für-Schritt • Fläche → Regner → Rohre • Zoom-Fix • Auto-Regner (Demo Varianten)</div>
   </div>
   <div class="row">
-    <button class="primary" id="btnExport">Projekt export (JSON)</button>
-    <button id="btnImport">Projekt import</button>
+    <button class="primary" id="btnExport">Export (JSON)</button>
+    <button id="btnImport">Import</button>
     <input id="fileImport" type="file" accept="application/json" hidden />
   </div>
 </header>
@@ -80,43 +79,22 @@
 <div class="wrap">
   <!-- LEFT -->
   <div class="panel">
-    <h3>Schritt für Schritt (kinderleicht)</h3>
-    <div class="hint">👉 Klick auf einen Schritt = Tool wird automatisch gewählt.</div>
+    <h3>Schritt für Schritt</h3>
+    <div class="hint">Klick auf Schritt = Tool wird aktiviert. Schritt 1 enthält Upload.</div>
     <div id="steps"></div>
 
     <div class="sep"></div>
 
-    <h3>Tools</h3>
-    <div class="toolgrid">
-      <button id="toolPan" class="primary">🖐️ Pan/Zoom</button>
-      <button id="toolSelect">🧲 Auswahl</button>
-      <button id="toolScale" class="warn">📏 Maßstab</button>
-      <button id="toolSource" class="ok">🚰 Wasserquelle</button>
-      <button id="toolWaterZone" class="vio">🟪 Bewässerungszone</button>
-      <button id="toolArea">🟩 Zu bewässernde Fläche</button>
-      <button id="toolPipe">🧩 Rohre (Snap)</button>
-      <button id="toolElev">⛰️ Höhenzone</button>
-      <button id="toolSprinkler" class="primary">💦 Regner</button>
-    </div>
-
-    <div class="sep"></div>
-
-    <h3>Bild (Plan) hochladen</h3>
-    <div class="row">
-      <input id="fileBg" type="file" accept="image/*" />
-      <button id="btnFitView" class="primary">Bild: Fit</button>
-    </div>
-    <div class="hint">Bild wird immer proportional angezeigt (kein Verzerren).</div>
-
-    <div class="sep"></div>
-
-    <h3>Auto-Regner</h3>
+    <h3>Auto-Regner & Ansicht</h3>
     <div class="row">
       <button id="btnAutoLayout" class="vio">✨ Auto-Regner in Fläche</button>
       <button id="btnClearSpr" class="warn">Regner löschen</button>
+      <button id="btnFitView" class="primary">Bild: Fit</button>
     </div>
-    <div class="hint">
-      Nutzt den aktuell gewählten Regner (Preset/Radius) und setzt Kopf-zu-Kopf (Demo-Layout).
+    <div class="row">
+      <button id="btnToggleHeat" class="primary">Heatmap: AN</button>
+      <button id="btnToggleGrid">Raster: AUS</button>
+      <button id="btnRecalc" class="primary">Neu berechnen</button>
     </div>
 
     <div class="sep"></div>
@@ -125,13 +103,8 @@
     <div class="row">
       <label>Ziel (mm/h)</label>
       <input id="targetMmH" type="number" min="1" step="0.5" value="10" />
-    </div>
-    <div class="row">
-      <label>Heatmap (px)</label>
+      <label>Auflösung (px)</label>
       <input id="heatRes" type="number" min="6" step="2" value="12" />
-      <button id="btnRecalc" class="primary">Neu berechnen</button>
-      <button id="btnToggleHeat" class="primary">Heatmap: AN</button>
-      <button id="btnToggleGrid">Raster: AUS</button>
     </div>
 
     <div class="kpi">
@@ -154,19 +127,15 @@
   <!-- RIGHT -->
   <div class="panel">
     <h3>Eigenschaften</h3>
-    <div class="hint" id="modeHint">Wähle einen Schritt oder Tool.</div>
+    <div class="hint" id="modeHint">Wähle Schritt / Tool.</div>
 
     <div class="sep"></div>
 
-    <h3>Bewässerungszonen (wie Sperrzonen – nur für Bewässerung)</h3>
-    <div class="hint">
-      Optional: Bereiche, die zusammen laufen sollen (z.B. „Rasen vorne“).<br>
-      Regner werden beim Setzen automatisch der Zone zugeordnet, wenn sie innerhalb liegen.
-    </div>
+    <h3>Zonen (Ventilkreise)</h3>
     <div class="row">
-      <button id="btnAddWaterZone" class="ok">+ Zone hinzufügen</button>
+      <button id="btnAddZone" class="ok">+ Zone</button>
     </div>
-    <div id="waterZonesList"></div>
+    <div id="zonesList"></div>
 
     <div class="sep"></div>
 
@@ -179,7 +148,6 @@
         <input id="scaleMeters" type="number" min="0.1" step="0.1" value="5" />
         <button id="btnApplyScale" class="primary">Anwenden</button>
       </div>
-      <p class="hint">Ohne Maßstab keine Regner (damit Radius immer real bleibt).</p>
     </div>
 
     <div id="propsSource" style="display:none;">
@@ -191,57 +159,40 @@
 
     <div id="propsSprinkler" style="display:none;">
       <h3>Regner</h3>
+
       <div class="row">
-        <label>Bewässerungszone</label>
-        <select id="sprWaterZone"></select>
+        <label>Zone</label>
+        <select id="sprZone"></select>
       </div>
 
       <div class="row">
-        <label>Preset</label>
-        <select id="sprPreset">
-          <option value="MP1000">Hunter MP1000 (2.5–4.5m)</option>
-          <option value="MP2000">Hunter MP2000 (4.0–6.4m)</option>
-          <option value="MP3000">Hunter MP3000 (6.7–9.1m)</option>
-          <option value="MP3500">Hunter MP3500 (9.4–10.7m)</option>
-          <option value="CUSTOM">Custom</option>
-        </select>
+        <label>Variante</label>
+        <select id="sprPreset"></select>
       </div>
 
-      <div class="row"><label>Name</label><input id="sprName" type="text" value="MP Rotator" /></div>
-      <div class="row"><label>Radius (m)</label><input id="sprRadius" type="number" min="0.2" step="0.1" value="6.4" /></div>
+      <div class="row"><label>Name</label><input id="sprName" type="text" value="Regner" /></div>
+      <div class="row"><label>Radius (m)</label><input id="sprRadius" type="number" min="0.2" step="0.1" value="6.0" /></div>
       <div class="row"><label>Arc (°)</label><input id="sprArc" type="number" min="30" max="360" step="1" value="360" /></div>
       <div class="row"><label>Richtung (°)</label><input id="sprDir" type="number" min="0" max="359" step="1" value="0" /></div>
-      <div class="row"><label>Precip (mm/h)</label><input id="sprMmH" type="number" min="0.5" step="0.5" value="10" /></div>
-      <div class="row"><label>Hangfaktor (% pro m)</label><input id="slopeFactor" type="number" min="0" step="0.5" value="3" /></div>
+      <div class="row"><label>mm/h</label><input id="sprMmH" type="number" min="0.5" step="0.5" value="10" /></div>
 
       <div class="row">
         <button id="btnDeleteSpr" class="warn">Löschen</button>
         <button id="btnCopySpr" class="primary">Duplizieren</button>
       </div>
-      <div class="hint">Auswahl-Tool: Regner ziehen (Drag&Drop).</div>
+      <div class="hint">Auswahl-Tool: Regner ziehen.</div>
     </div>
 
-    <div id="propsWaterZonePoly" style="display:none;">
-      <h3>Bewässerungszone</h3>
-      <div class="row"><label>Name</label><input id="wzName" type="text" value="Zone" /></div>
-      <div class="row"><label>Max L/min (Demo)</label><input id="wzMaxLpm" type="number" step="1" value="20" /></div>
-      <div class="row"><button id="btnDeleteWaterZonePoly" class="warn">Zone löschen</button></div>
-      <div class="hint">Diese Zone ist wie eine Sperrzone – nur eben als Bewässerungsbereich.</div>
-    </div>
-
-    <div id="propsElev" style="display:none;">
-      <h3>Höhenzone</h3>
-      <div class="row"><label>Name</label><input id="elevName" type="text" value="Zone höher" /></div>
-      <div class="row"><label>Höhe relativ (m)</label><input id="elevMeters" type="number" step="0.1" value="0.5" /></div>
-      <div class="row"><button id="btnDeleteElevPoly" class="warn">Zone löschen</button></div>
+    <div id="propsAreaNote" style="display:none;">
+      <h3>Fläche</h3>
+      <div class="hint">Zu bewässernde Fläche. (Polygon)</div>
     </div>
 
     <div id="propsPipe" style="display:none;">
       <h3>Rohr</h3>
-      <div class="row"><label>Name</label><input id="pipeName" type="text" value="Hauptleitung" /></div>
+      <div class="row"><label>Name</label><input id="pipeName" type="text" value="Leitung" /></div>
       <div class="row"><label>Durchmesser (mm)</label><input id="pipeDia" type="number" step="1" value="25" /></div>
       <div class="row"><button id="btnDeletePipe" class="warn">Rohr löschen</button></div>
-      <div class="hint">Beim Zeichnen snappt die Leitung an Quelle/Regner.</div>
     </div>
 
     <div class="sep"></div>
@@ -257,7 +208,7 @@
 
 <script>
 (() => {
-  const APP_VERSION = "PVC WELT Bewässerungsplaner Demo v0.4";
+  const APP_VERSION = "PVC WELT Bewässerungsplaner Demo v0.5";
 
   const canvas = document.getElementById('c');
   const ctx = canvas.getContext('2d');
@@ -267,60 +218,79 @@
   const clamp = (v,a,b)=>Math.max(a,Math.min(b,v));
   const dist = (a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
 
-  // View
+  // --- View ---
   let view = { x: 20, y: 20, s: 1 };
   function worldToScreen(p){ return { x:(p.x+view.x)*view.s, y:(p.y+view.y)*view.s }; }
   function screenToWorld(p){ return { x:p.x/view.s - view.x, y:p.y/view.s - view.y }; }
 
+  let cssW = 1000, cssH = 700;
   function fitCanvas(){
     const rect = canvas.getBoundingClientRect();
+    cssW = Math.max(900, Math.floor(rect.width));
+    cssH = Math.max(600, Math.floor(rect.height));
     const dpr = window.devicePixelRatio || 1;
-    canvas.width = Math.max(900, Math.floor(rect.width*dpr));
-    canvas.height = Math.max(600, Math.floor(rect.height*dpr));
+    canvas.width = Math.floor(cssW * dpr);
+    canvas.height = Math.floor(cssH * dpr);
     ctx.setTransform(dpr,0,0,dpr,0,0);
     render();
   }
   window.addEventListener('resize', fitCanvas);
 
-  // Presets (Demo)
-  const PRESETS = {
-    MP1000: { name:"MP1000", radiusM: 4.0, mmh: 10, lpm: 2.0 },
-    MP2000: { name:"MP2000", radiusM: 6.4, mmh: 10, lpm: 3.5 },
-    MP3000: { name:"MP3000", radiusM: 9.1, mmh: 10, lpm: 5.5 },
-    MP3500: { name:"MP3500", radiusM: 10.7, mmh: 10, lpm: 7.0 },
-  };
+  // --- Demo Sprenger Varianten (später CSV) ---
+  // lpm = grobe Demo-Schätzung für „Zone L/min“
+  const PRESETS = [
+    { key:"S3",  label:"Demo S (3.0m)",  radiusM:3.0,  mmh:10, lpm:1.6 },
+    { key:"M4",  label:"Demo M (4.0m)",  radiusM:4.0,  mmh:10, lpm:2.2 },
+    { key:"L6",  label:"Demo L (6.0m)",  radiusM:6.0,  mmh:10, lpm:3.5 },
+    { key:"XL9", label:"Demo XL (9.0m)", radiusM:9.0,  mmh:10, lpm:5.5 },
+    { key:"CUSTOM", label:"Custom",      radiusM:6.0,  mmh:10, lpm:3.5 },
+  ];
+  const presetByKey = (k) => PRESETS.find(p=>p.key===k) || PRESETS[2];
 
-  // State
+  // --- State ---
   const state = {
     version: APP_VERSION,
     bg: { img:null, w:0, h:0, url:null },
     scale: { pxPerMeter:null, a:null, b:null },
     source: null,
-    waterZones: [], // {id,name,maxLpm,pts}
-    areas: [],      // zu bewässernde Fläche (kann 1 oder mehrere sein)
-    elevZones: [],  // {id,name,meters,pts}
-    pipes: [],      // {id,name,dia,pts}
-    sprinklers: [], // {id,type,name,x,y,radiusM,arcDeg,dirDeg,mmh,slopeFactorPct,waterZoneId}
+
+    // Only ONE polygon type for simplicity: irrigated areas
+    areas: [], // {id,name,pts}
+
+    pipes: [], // {id,name,dia,pts}
+    sprinklers: [], // {id,presetKey,name,x,y,radiusM,arcDeg,dirDeg,mmh,zoneId}
+
+    zones: [], // {id,name,maxLpm}
+
     selection: null,
     showHeat: true,
     showGrid: false,
     heat: { ready:false, cellPx: 12, data:null, bbox:null },
     targetMmh: 10,
-    defaultSpr: { type:"MP2000", radiusM:6.4, arcDeg:360, dirDeg:0, mmh:10, slopeFactorPct:3, name:"MP Rotator MP2000", waterZoneId:null }
+
+    defaultSpr: { presetKey:"L6", name:"Regner", radiusM:6.0, arcDeg:360, dirDeg:0, mmh:10, zoneId:null }
   };
 
-  // Tools
+  function ensureZones(){
+    if(state.zones.length===0){
+      state.zones.push({id:uid(), name:"Zone 1", maxLpm:20});
+    }
+    if(!state.defaultSpr.zoneId) state.defaultSpr.zoneId = state.zones[0].id;
+  }
+  ensureZones();
+
+  // --- Tools ---
   let tool = 'pan';
+  // pan, select, scale, source, area, sprinkler, pipe
   let drawing = { kind:null, pts:[], temp:null, snap:null };
   let mouse = { down:false, last:null, x:0, y:0 };
   let spacePan = false;
 
-  // SNAP
   const SNAP_RADIUS_WORLD = () => 18 / view.s;
   function nearestSnapPoint(w){
     const candidates = [];
-    if(state.source) candidates.push({kind:'source', id:state.source.id, x:state.source.x, y:state.source.y});
-    for(const s of state.sprinklers) candidates.push({kind:'sprinkler', id:s.id, x:s.x, y:s.y});
+    if(state.source) candidates.push({kind:'source', x:state.source.x, y:state.source.y});
+    for(const s of state.sprinklers) candidates.push({kind:'sprinkler', x:s.x, y:s.y});
     let best=null, bestD=Infinity;
     for(const c of candidates){
       const d=Math.hypot(w.x-c.x,w.y-c.y);
@@ -329,111 +299,25 @@
     if(best && bestD<=SNAP_RADIUS_WORLD()) return {...best,d:bestD};
     return null;
   }
-
-  // Geometry
-  function pointInPoly(pt, poly){
-    let inside=false;
-    for(let i=0,j=poly.length-1;i<poly.length;j=i++){
-      const xi=poly[i].x, yi=poly[i].y;
-      const xj=poly[j].x, yj=poly[j].y;
-      const intersect=((yi>pt.y)!=(yj>pt.y)) && (pt.x < (xj-xi)*(pt.y-yi)/(yj-yi+1e-9)+xi);
-      if(intersect) inside=!inside;
-    }
-    return inside;
-  }
-  function polyBBox(pts){
-    let minX=Infinity,minY=Infinity,maxX=-Infinity,maxY=-Infinity;
-    for(const p of pts){minX=Math.min(minX,p.x);minY=Math.min(minY,p.y);maxX=Math.max(maxX,p.x);maxY=Math.max(maxY,p.y);}
-    return {minX,minY,maxX,maxY};
-  }
   function closeThresholdWorld(){ return 14 / view.s; }
 
-  function getWaterZoneAt(pt){
-    for(let i=state.waterZones.length-1;i>=0;i--){
-      const z=state.waterZones[i];
-      if(z.pts?.length>=3 && pointInPoly(pt,z.pts)) return z;
-    }
-    return null;
-  }
-
-  // Steps (kinderleicht + logisch)
+  // --- UI: Steps ---
   function stepStatus(){
     return {
       s1: !!state.bg.img,
       s2: !!state.scale.pxPerMeter,
       s3: !!state.source,
-      s4: state.waterZones.length>0,
-      s5: state.areas.length>0,
-      s6: state.pipes.length>0,
-      s7: state.sprinklers.length>0,
+      s4: state.areas.length>0,
+      s5: state.sprinklers.length>0,
+      s6: state.pipes.length>0
     };
   }
 
-  function renderSteps(){
-    const st=stepStatus();
-    const steps = [
-      { title:'1) Bild hochladen', ok:st.s1, text:'Planbild hochladen. Danach „Bild: Fit“ drücken.', tool:null },
-      { title:'2) Maßstab setzen', ok:st.s2, text:'📏 Tool → 2 Punkte klicken → Meter eingeben → Anwenden.', tool:'scale' },
-      { title:'3) Wasserquelle setzen', ok:st.s3, text:'🚰 Tool → Klick im Plan (wie im Pool-Planer).', tool:'source' },
-      { title:'4) Bewässerungszonen anlegen (optional)', ok:st.s4, text:'🟪 Tool → Zonen wie „Sperrzonen“ zeichnen (z.B. „Rasen vorne“).', tool:'waterZone' },
-      { title:'5) Zu bewässernde Fläche markieren', ok:st.s5, text:'🟩 Tool → Fläche polygon zeichnen (Bereich der Wasser bekommen soll).', tool:'area' },
-      { title:'6) Rohre verlegen', ok:st.s6, text:'🧩 Tool → Leitung zeichnen (Snap an Quelle/Regner).', tool:'pipe' },
-      { title:'7) Regner setzen oder automatisch anlegen', ok:st.s7, text:'💦 Tool → Regner setzen oder links „Auto-Regner“ benutzen.', tool:'sprinkler' },
-    ];
-
-    const wrap=el('steps');
-    wrap.innerHTML='';
-    for(const s of steps){
-      const div=document.createElement('div');
-      div.className='step';
-      const badge = s.ok ? `<span class="badge ok">OK</span>` : `<span class="badge open">OFFEN</span>`;
-      div.innerHTML=`
-        <div>
-          <div class="sTitle">${s.title}</div>
-          <div class="sText">${s.text}</div>
-          <div class="go">${s.tool ? "→ Klick hier aktiviert das Tool" : ""}</div>
-        </div>
-        <div style="display:flex;flex-direction:column;gap:8px;align-items:flex-end;">
-          ${badge}
-        </div>
-      `;
-      div.addEventListener('click', ()=>{
-        if(s.tool) setTool(s.tool);
-        else {
-          // Schritt 1: Fokus auf Upload
-          el('fileBg').click();
-        }
-      });
-      wrap.appendChild(div);
-    }
-  }
-
-  // Tool buttons
-  const toolButtons = {
-    pan: el('toolPan'),
-    select: el('toolSelect'),
-    scale: el('toolScale'),
-    source: el('toolSource'),
-    waterZone: el('toolWaterZone'),
-    area: el('toolArea'),
-    pipe: el('toolPipe'),
-    elev: el('toolElev'),
-    sprinkler: el('toolSprinkler'),
-  };
-
   function setTool(t){
-    tool=t;
-    Object.entries(toolButtons).forEach(([k,btn])=>{
-      btn.classList.remove('primary','warn','ok','vio');
-      if(k===t){
-        if(k==='scale') btn.classList.add('warn');
-        else if(k==='source') btn.classList.add('ok');
-        else if(k==='waterZone') btn.classList.add('vio');
-        else btn.classList.add('primary');
-      }
-    });
+    tool = t;
     updateModeHint();
     showProps();
+    renderSteps();
     render();
   }
 
@@ -443,75 +327,129 @@
       select:"Auswahl: Objekt anklicken. Regner/Quelle ziehen.",
       scale:"Maßstab: Punkt A klicken, Punkt B klicken, Meter → Anwenden.",
       source:"Wasserquelle: Klick zum Setzen.",
-      waterZone:"Bewässerungszone: Polygon zeichnen (Doppelklick beendet).",
-      area:"Zu bewässernde Fläche: Polygon zeichnen (Doppelklick beendet).",
-      pipe:"Rohre: Klickpunkte setzen, Snap an Quelle/Regner, Doppelklick beendet.",
-      elev:"Höhenzone: Polygon zeichnen (optional).",
-      sprinkler:"Regner: Klick zum Setzen (nur wenn Maßstab + Quelle).",
+      area:"Fläche: Polygon klicken. Doppelklick beendet.",
+      sprinkler:"Regner: Klick zum Setzen. (Maßstab + Quelle nötig)",
+      pipe:"Rohre: Leitung zeichnen. Snap an Quelle/Regner. Doppelklick beendet."
     };
-    el('modeHint').textContent=hints[tool]||"";
+    el('modeHint').textContent = hints[tool] || "";
   }
 
-  // Background upload
-  el('fileBg').addEventListener('change', (e)=>{
-    const file=e.target.files?.[0]; if(!file) return;
-    const url=URL.createObjectURL(file);
-    const img=new Image();
-    img.onload=()=>{
-      state.bg.img=img; state.bg.w=img.width; state.bg.h=img.height; state.bg.url=url;
+  function renderSteps(){
+    const st = stepStatus();
+    const steps = [
+      {
+        title:'1) Bild hochladen',
+        ok:st.s1,
+        text:'Planbild wählen und „Fit“ drücken.',
+        onClick:()=> el('fileBg').click(),
+        extras:`
+          <div class="mini">
+            <input id="fileBg" type="file" accept="image/*" style="max-width:220px;" />
+            <button id="btnFitView2" class="primary" type="button">Fit</button>
+          </div>
+        `
+      },
+      { title:'2) Maßstab setzen', ok:st.s2, text:'📏 Tool → 2 Punkte → Meter → Anwenden.', onClick:()=>setTool('scale') },
+      { title:'3) Wasserquelle setzen', ok:st.s3, text:'🚰 Tool → Klick im Plan.', onClick:()=>setTool('source') },
+      { title:'4) Zu bewässernde Fläche markieren', ok:st.s4, text:'🟩 Tool → Fläche polygon zeichnen.', onClick:()=>setTool('area') },
+      { title:'5) Regner setzen oder Auto', ok:st.s5, text:'💦 Tool setzen oder „Auto-Regner in Fläche“.', onClick:()=>setTool('sprinkler') },
+      { title:'6) Rohre verlegen', ok:st.s6, text:'🧩 Tool → Leitung zeichnen (Snap).', onClick:()=>setTool('pipe') }
+    ];
+
+    const wrap = el('steps');
+    wrap.innerHTML = "";
+
+    for(const s of steps){
+      const div = document.createElement('div');
+      div.className = 'step';
+      const badge = s.ok ? `<span class="badge ok">OK</span>` : `<span class="badge open">OFFEN</span>`;
+      div.innerHTML = `
+        <div style="flex:1;">
+          <div class="sTitle">${s.title}</div>
+          <div class="sText">${s.text}</div>
+          ${s.extras || ""}
+        </div>
+        <div>${badge}</div>
+      `;
+      div.addEventListener('click', (e)=>{
+        // clicks on file input should not trigger step click twice
+        if(e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'BUTTON')) return;
+        s.onClick?.();
+      });
+      wrap.appendChild(div);
+    }
+
+    // wire the embedded file input + fit
+    const fileBg = document.getElementById('fileBg');
+    if(fileBg){
+      fileBg.onchange = (e)=>handleBgUpload(e);
+    }
+    const fitBtn = document.getElementById('btnFitView2');
+    if(fitBtn){
+      fitBtn.onclick = ()=>{ fitImageToView(); render(); };
+    }
+  }
+
+  // --- Background ---
+  function handleBgUpload(e){
+    const file = e.target.files?.[0];
+    if(!file) return;
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = ()=>{
+      state.bg.img = img; state.bg.w=img.width; state.bg.h=img.height; state.bg.url=url;
       fitImageToView();
-      renderSteps();
-      // Sinnvoll: direkt zu Maßstab springen (kinderleicht)
+      // after upload: go to scale directly (kinderleicht)
       setTool('scale');
+      renderSteps();
       render();
     };
-    img.src=url;
-  });
+    img.src = url;
+  }
 
   function fitImageToView(){
-    const rect=canvas.getBoundingClientRect();
-    const vw=rect.width, vh=rect.height;
     if(!state.bg.img) return;
-    const sx=(vw*0.9)/state.bg.w;
-    const sy=(vh*0.9)/state.bg.h;
-    view.s=clamp(Math.min(sx,sy),0.2,6);
-    const cx=state.bg.w/2, cy=state.bg.h/2;
-    view.x=(vw/(2*view.s))-cx;
-    view.y=(vh/(2*view.s))-cy;
+    const vw = cssW, vh = cssH;
+    const sx = (vw*0.9)/state.bg.w;
+    const sy = (vh*0.9)/state.bg.h;
+    view.s = clamp(Math.min(sx,sy), 0.2, 6);
+    const cx = state.bg.w/2, cy = state.bg.h/2;
+    view.x = (vw/(2*view.s)) - cx;
+    view.y = (vh/(2*view.s)) - cy;
   }
+
   el('btnFitView').addEventListener('click', ()=>{ fitImageToView(); render(); });
 
-  // Heat toggles
+  // --- Toggles ---
   el('btnToggleHeat').addEventListener('click', ()=>{
-    state.showHeat=!state.showHeat;
-    el('btnToggleHeat').textContent="Heatmap: "+(state.showHeat?"AN":"AUS");
+    state.showHeat = !state.showHeat;
+    el('btnToggleHeat').textContent = "Heatmap: " + (state.showHeat ? "AN" : "AUS");
     render();
   });
   el('btnToggleGrid').addEventListener('click', ()=>{
-    state.showGrid=!state.showGrid;
-    el('btnToggleGrid').textContent="Raster: "+(state.showGrid?"AN":"AUS");
+    state.showGrid = !state.showGrid;
+    el('btnToggleGrid').textContent = "Raster: " + (state.showGrid ? "AN" : "AUS");
     render();
   });
-
   el('btnRecalc').addEventListener('click', ()=>{
-    state.targetMmh=parseFloat(el('targetMmH').value||"10");
-    state.heat.cellPx=parseInt(el('heatRes').value||"12",10);
+    state.targetMmh = parseFloat(el('targetMmH').value || "10");
+    state.heat.cellPx = parseInt(el('heatRes').value || "12",10);
     recalcHeat(); render();
   });
   el('targetMmH').addEventListener('change', ()=>{ state.targetMmh=parseFloat(el('targetMmH').value||"10"); recalcHeat(); render(); });
   el('heatRes').addEventListener('change', ()=>{ state.heat.cellPx=parseInt(el('heatRes').value||"12",10); recalcHeat(); render(); });
 
-  // Export/Import
+  // --- Export/Import ---
   el('btnExport').addEventListener('click', ()=>{
-    const payload=serialize();
-    const blob=new Blob([JSON.stringify(payload,null,2)],{type:"application/json"});
-    const a=document.createElement('a');
-    a.href=URL.createObjectURL(blob);
-    a.download=`bewaesserungsplan_${new Date().toISOString().slice(0,10)}.json`;
+    const payload = serialize();
+    const blob = new Blob([JSON.stringify(payload,null,2)],{type:"application/json"});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `bewaesserungsplan_${new Date().toISOString().slice(0,10)}.json`;
     a.click();
     URL.revokeObjectURL(a.href);
   });
-  el('btnImport').addEventListener('click', ()=>el('fileImport').click());
+  el('btnImport').addEventListener('click', ()=> el('fileImport').click());
   el('fileImport').addEventListener('change', async (e)=>{
     const file=e.target.files?.[0]; if(!file) return;
     const d=JSON.parse(await file.text());
@@ -523,175 +461,353 @@
   function serialize(){
     return {
       version: state.version,
-      bg:{w:state.bg.w,h:state.bg.h},
-      scale:state.scale,
-      source:state.source,
-      waterZones:state.waterZones,
-      areas:state.areas,
-      elevZones:state.elevZones,
-      pipes:state.pipes,
-      sprinklers:state.sprinklers,
-      defaultSpr:state.defaultSpr,
-      targetMmh:state.targetMmh,
-      heat:{cellPx:state.heat.cellPx}
+      bg: { w: state.bg.w, h: state.bg.h },
+      scale: state.scale,
+      source: state.source,
+      areas: state.areas,
+      pipes: state.pipes,
+      sprinklers: state.sprinklers,
+      zones: state.zones,
+      defaultSpr: state.defaultSpr,
+      targetMmh: state.targetMmh,
+      heat: { cellPx: state.heat.cellPx }
     };
   }
 
   async function deserialize(d){
-    state.scale=d.scale||{pxPerMeter:null,a:null,b:null};
-    state.source=d.source||null;
-    state.waterZones=d.waterZones||[];
-    state.areas=d.areas||[];
-    state.elevZones=d.elevZones||[];
-    state.pipes=d.pipes||[];
-    state.sprinklers=d.sprinklers||[];
-    state.defaultSpr=d.defaultSpr||state.defaultSpr;
-    state.targetMmh=d.targetMmh||10;
-    state.heat.cellPx=d.heat?.cellPx||12;
-    el('targetMmH').value=state.targetMmh;
-    el('heatRes').value=state.heat.cellPx;
-    state.selection=null;
-    drawing={kind:null,pts:[],temp:null,snap:null};
-    renderWaterZonesList();
-    updateSprWaterZoneOptions();
+    state.scale = d.scale || {pxPerMeter:null,a:null,b:null};
+    state.source = d.source || null;
+    state.areas = d.areas || [];
+    state.pipes = d.pipes || [];
+    state.sprinklers = d.sprinklers || [];
+    state.zones = d.zones || [];
+    state.defaultSpr = d.defaultSpr || state.defaultSpr;
+    state.targetMmh = d.targetMmh || 10;
+    state.heat.cellPx = d.heat?.cellPx || 12;
+    el('targetMmH').value = state.targetMmh;
+    el('heatRes').value = state.heat.cellPx;
+
+    ensureZones();
+    renderZones();
+    updateSprZoneOptions();
     buildBOM();
     showProps();
   }
 
-  // Scale apply
-  el('btnApplyScale').addEventListener('click', ()=>{
-    if(!state.scale.a||!state.scale.b) return;
-    const meters=parseFloat(el('scaleMeters').value||"1");
-    const dpx=dist(state.scale.a,state.scale.b);
-    if(meters>0 && dpx>0){
-      state.scale.pxPerMeter=dpx/meters;
-      recalcHeat();
-      renderSteps();
-      // Nach Maßstab als nächstes sinnvoll: Wasserquelle
-      setTool('source');
-      render();
-    }
-  });
-
-  // Water zones list (right)
-  el('btnAddWaterZone').addEventListener('click', ()=>{
-    const z={id:uid(), name:`Zone ${state.waterZones.length+1}`, maxLpm:20, pts:[]};
-    state.waterZones.push(z);
-    renderWaterZonesList();
-    updateSprWaterZoneOptions();
-    setTool('waterZone');
-    renderSteps();
+  // --- Zones (Ventilkreise) ---
+  el('btnAddZone').addEventListener('click', ()=>{
+    state.zones.push({id:uid(), name:`Zone ${state.zones.length+1}`, maxLpm:20});
+    if(!state.defaultSpr.zoneId) state.defaultSpr.zoneId = state.zones[0].id;
+    renderZones();
+    updateSprZoneOptions();
     render();
-    alert("Jetzt 🟪 Tool aktiv: Zeichne die Zone als Polygon (Doppelklick beendet).");
   });
 
   function zoneTotals(){
-    const totals=new Map();
-    for(const z of state.waterZones) totals.set(z.id,0);
+    const totals = new Map();
+    for(const z of state.zones) totals.set(z.id, 0);
     for(const s of state.sprinklers){
-      const zid=s.waterZoneId;
-      if(!zid) continue;
-      const base=PRESETS[s.type]?.lpm ?? 3.0;
-      const arcFactor=(s.arcDeg||360)/360;
-      totals.set(zid,(totals.get(zid)||0)+(base*arcFactor));
+      const zid = s.zoneId || state.zones[0].id;
+      const pr = presetByKey(s.presetKey);
+      const arcFactor = (s.arcDeg||360)/360;
+      totals.set(zid, (totals.get(zid)||0) + (pr.lpm * arcFactor));
     }
     return totals;
   }
 
-  function renderWaterZonesList(){
-    const list=el('waterZonesList');
-    list.innerHTML='';
-    const totals=zoneTotals();
+  function renderZones(){
+    ensureZones();
+    const list = el('zonesList');
+    list.innerHTML = '';
+    const totals = zoneTotals();
 
-    if(state.waterZones.length===0){
-      const div=document.createElement('div');
-      div.className='hint';
-      div.textContent="Noch keine Bewässerungszone. (Optional)";
-      list.appendChild(div);
-      return;
-    }
-
-    state.waterZones.forEach((z,idx)=>{
-      const t=totals.get(z.id)||0;
-      const div=document.createElement('div');
-      div.className='zoneItem';
-      div.innerHTML=`
+    state.zones.forEach((z)=>{
+      const t = totals.get(z.id) || 0;
+      const div = document.createElement('div');
+      div.className = 'zoneItem';
+      div.innerHTML = `
         <div class="zoneHead">
           <div style="font-weight:950;">${z.name}</div>
           <button class="warn" data-del="${z.id}" style="padding:6px 10px;font-size:12px;">Löschen</button>
         </div>
         <div class="row" style="margin-top:8px;">
-          <label>Max L/min (Demo)</label>
+          <label>Max L/min</label>
           <input type="number" step="1" data-max="${z.id}" value="${z.maxLpm}" />
         </div>
         <div class="row">
           <div class="pill">Aktuell (geschätzt): <b>${t.toFixed(1)} L/min</b></div>
           <div class="pill">${t>z.maxLpm ? "⚠️ zu hoch" : "✅ ok"}</div>
         </div>
-        <div class="hint">${z.pts?.length>=3 ? "Zone gezeichnet ✅" : "Zone noch zeichnen (🟪 Tool)"} </div>
       `;
       div.querySelector(`[data-del="${z.id}"]`).addEventListener('click', ()=>{
-        state.waterZones = state.waterZones.filter(x=>x.id!==z.id);
-        for(const s of state.sprinklers){
-          if(s.waterZoneId===z.id) s.waterZoneId=null;
-        }
-        renderWaterZonesList();
-        updateSprWaterZoneOptions();
-        buildBOM();
-        renderSteps();
-        render();
+        if(state.zones.length<=1){ alert("Mindestens 1 Zone muss bleiben."); return; }
+        state.zones = state.zones.filter(x=>x.id!==z.id);
+        const fallback = state.zones[0].id;
+        for(const s of state.sprinklers) if(s.zoneId===z.id) s.zoneId = fallback;
+        if(state.defaultSpr.zoneId===z.id) state.defaultSpr.zoneId = fallback;
+        renderZones(); updateSprZoneOptions(); buildBOM(); renderSteps(); render();
       });
       div.querySelector(`[data-max="${z.id}"]`).addEventListener('input', (e)=>{
-        z.maxLpm=parseFloat(e.target.value||"0");
-        renderWaterZonesList();
+        z.maxLpm = parseFloat(e.target.value||"0");
+        renderZones();
       });
       list.appendChild(div);
     });
   }
 
-  function updateSprWaterZoneOptions(){
-    const sel=el('sprWaterZone');
+  function updateSprZoneOptions(){
+    const sel = el('sprZone');
+    if(!sel) return;
     sel.innerHTML='';
-    const opt0=document.createElement('option');
-    opt0.value="";
-    opt0.textContent="(Keine Zone)";
-    sel.appendChild(opt0);
-
-    state.waterZones.forEach(z=>{
-      const o=document.createElement('option');
-      o.value=z.id;
-      o.textContent=z.name;
-      sel.appendChild(o);
+    state.zones.forEach(z=>{
+      const opt=document.createElement('option');
+      opt.value=z.id;
+      opt.textContent=z.name;
+      sel.appendChild(opt);
     });
-
-    const s=getSel('sprinkler');
-    if(s) sel.value = s.waterZoneId || "";
-    else sel.value = state.defaultSpr.waterZoneId || "";
+    const s = getSel('sprinkler');
+    sel.value = s ? (s.zoneId || state.zones[0].id) : (state.defaultSpr.zoneId || state.zones[0].id);
   }
 
-  // Tool buttons wiring
-  el('toolPan').addEventListener('click', ()=>setTool('pan'));
-  el('toolSelect').addEventListener('click', ()=>setTool('select'));
-  el('toolScale').addEventListener('click', ()=>setTool('scale'));
-  el('toolSource').addEventListener('click', ()=>setTool('source'));
-  el('toolWaterZone').addEventListener('click', ()=>setTool('waterZone'));
-  el('toolArea').addEventListener('click', ()=>setTool('area'));
-  el('toolPipe').addEventListener('click', ()=>setTool('pipe'));
-  el('toolElev').addEventListener('click', ()=>setTool('elev'));
-  el('toolSprinkler').addEventListener('click', ()=>setTool('sprinkler'));
+  // --- Sprinkler preset options ---
+  function fillPresetSelect(){
+    const sel = el('sprPreset');
+    sel.innerHTML='';
+    for(const p of PRESETS){
+      const opt=document.createElement('option');
+      opt.value=p.key;
+      opt.textContent=p.label;
+      sel.appendChild(opt);
+    }
+  }
+  fillPresetSelect();
 
-  // Auto layout (uses first "zu bewässernde Fläche")
+  // --- Properties / Selection ---
+  function getSel(kind){
+    if(state.selection?.kind!==kind) return null;
+    if(kind==='sprinkler') return state.sprinklers.find(s=>s.id===state.selection.id)||null;
+    if(kind==='pipe') return state.pipes.find(p=>p.id===state.selection.id)||null;
+    if(kind==='source') return (state.source && state.source.id===state.selection.id) ? state.source : null;
+    if(kind==='area') return state.areas.find(a=>a.id===state.selection.id)||null;
+    return null;
+  }
+
+  function showProps(){
+    const sel = state.selection;
+    el('propsNone').style.display = (!sel && !(tool==='scale' && state.scale.a && state.scale.b)) ? 'block' : 'none';
+    el('propsScale').style.display = (tool==='scale' && state.scale.a && state.scale.b) ? 'block' : 'none';
+    el('propsSource').style.display = (sel?.kind==='source') ? 'block' : 'none';
+    el('propsSprinkler').style.display = (sel?.kind==='sprinkler') ? 'block' : 'none';
+    el('propsPipe').style.display = (sel?.kind==='pipe') ? 'block' : 'none';
+    el('propsAreaNote').style.display = (sel?.kind==='area') ? 'block' : 'none';
+
+    if(sel?.kind==='source') syncSourceForm();
+    if(sel?.kind==='sprinkler') syncSprinklerForm();
+    if(sel?.kind==='pipe') syncPipeForm();
+    if(sel?.kind==='area') {/* note only */}
+    updateSprZoneOptions();
+  }
+
+  function syncSourceForm(){
+    const s = getSel('source'); if(!s) return;
+    el('srcName').value = s.name;
+    el('srcInfo').value = s.info||"";
+  }
+  function syncPipeForm(){
+    const p = getSel('pipe'); if(!p) return;
+    el('pipeName').value = p.name;
+    el('pipeDia').value = p.dia;
+  }
+  function syncSprinklerForm(){
+    ensureZones();
+    const s = getSel('sprinkler'); if(!s) return;
+    el('sprZone').value = s.zoneId || state.zones[0].id;
+    el('sprPreset').value = s.presetKey || "L6";
+    el('sprName').value = s.name;
+    el('sprRadius').value = s.radiusM;
+    el('sprArc').value = s.arcDeg;
+    el('sprDir').value = s.dirDeg;
+    el('sprMmH').value = s.mmh;
+  }
+
+  // Source edits
+  el('srcName').addEventListener('input', ()=>{
+    const s=getSel('source'); if(!s) return;
+    s.name = el('srcName').value || s.name;
+    renderSteps(); render();
+  });
+  el('srcInfo').addEventListener('input', ()=>{
+    const s=getSel('source'); if(!s) return;
+    s.info = el('srcInfo').value || "";
+    render();
+  });
+  el('btnDeleteSource').addEventListener('click', ()=>{
+    state.source=null;
+    state.selection=null;
+    renderSteps(); showProps(); render();
+  });
+
+  // Pipe edits
+  el('pipeName').addEventListener('input', ()=>{
+    const p=getSel('pipe'); if(!p) return;
+    p.name = el('pipeName').value || p.name;
+    buildBOM(); render();
+  });
+  el('pipeDia').addEventListener('input', ()=>{
+    const p=getSel('pipe'); if(!p) return;
+    p.dia = parseInt(el('pipeDia').value||"25",10);
+    buildBOM(); render();
+  });
+  el('btnDeletePipe').addEventListener('click', ()=>{
+    const p=getSel('pipe'); if(!p) return;
+    state.pipes = state.pipes.filter(x=>x.id!==p.id);
+    state.selection=null;
+    buildBOM(); recalcHeat(); renderSteps(); showProps(); render();
+  });
+
+  // Sprinkler edits
+  el('sprZone').addEventListener('change', ()=>{
+    const s=getSel('sprinkler');
+    if(s){
+      s.zoneId = el('sprZone').value;
+      renderZones(); buildBOM(); render();
+    } else {
+      state.defaultSpr.zoneId = el('sprZone').value;
+    }
+  });
+
+  el('sprPreset').addEventListener('change', ()=>{
+    const val = el('sprPreset').value;
+    const s=getSel('sprinkler');
+    const p = presetByKey(val);
+    if(s){
+      s.presetKey = val;
+      if(val!=="CUSTOM"){
+        s.radiusM = p.radiusM;
+        s.mmh = p.mmh;
+        s.name = `Regner ${p.label}`;
+      }
+      syncSprinklerForm();
+      renderZones(); buildBOM(); recalcHeat(); render();
+    } else {
+      state.defaultSpr.presetKey = val;
+      if(val!=="CUSTOM"){
+        state.defaultSpr.radiusM = p.radiusM;
+        state.defaultSpr.mmh = p.mmh;
+        state.defaultSpr.name = `Regner ${p.label}`;
+      }
+    }
+  });
+
+  ['sprName','sprRadius','sprArc','sprDir','sprMmH'].forEach(id=>{
+    el(id).addEventListener('input', ()=>{
+      const s=getSel('sprinkler');
+      const upd = {
+        name: el('sprName').value || (s?.name ?? state.defaultSpr.name),
+        radiusM: clamp(parseFloat(el('sprRadius').value||"1"),0.2,200),
+        arcDeg: clamp(parseFloat(el('sprArc').value||"360"),30,360),
+        dirDeg: ((parseFloat(el('sprDir').value||"0")%360)+360)%360,
+        mmh: clamp(parseFloat(el('sprMmH').value||"10"),0.1,200),
+      };
+      if(s){
+        Object.assign(s, upd);
+        Object.assign(state.defaultSpr, { ...upd, presetKey:s.presetKey, zoneId:s.zoneId });
+        renderZones(); buildBOM(); recalcHeat(); render();
+      } else {
+        Object.assign(state.defaultSpr, upd);
+      }
+    });
+  });
+
+  el('btnDeleteSpr').addEventListener('click', ()=>{
+    const s=getSel('sprinkler'); if(!s) return;
+    state.sprinklers = state.sprinklers.filter(x=>x.id!==s.id);
+    state.selection=null;
+    renderZones(); buildBOM(); recalcHeat(); renderSteps(); showProps(); render();
+  });
+  el('btnCopySpr').addEventListener('click', ()=>{
+    const s=getSel('sprinkler'); if(!s) return;
+    const c={...s, id:uid(), x:s.x+20, y:s.y+20};
+    state.sprinklers.push(c);
+    state.selection={kind:'sprinkler', id:c.id};
+    renderZones(); buildBOM(); recalcHeat(); renderSteps(); showProps(); render();
+  });
+
+  // --- Scale apply ---
+  el('btnApplyScale').addEventListener('click', ()=>{
+    if(!state.scale.a || !state.scale.b) return;
+    const meters = parseFloat(el('scaleMeters').value || "1");
+    const dpx = dist(state.scale.a, state.scale.b);
+    if(meters>0 && dpx>0){
+      state.scale.pxPerMeter = dpx / meters;
+      recalcHeat();
+      renderSteps();
+      setTool('source'); // next logical step
+      render();
+    }
+  });
+
+  // --- Auto Layout ---
   el('btnAutoLayout').addEventListener('click', ()=>{
     if(!state.scale.pxPerMeter){ alert("Bitte zuerst Maßstab setzen (Schritt 2)."); return; }
     if(!state.source){ alert("Bitte zuerst Wasserquelle setzen (Schritt 3)."); return; }
-    if(state.areas.length===0){ alert("Bitte zuerst die zu bewässernde Fläche markieren (Schritt 5)."); return; }
+    if(state.areas.length===0){ alert("Bitte zuerst Fläche markieren (Schritt 4)."); return; }
 
-    const area=state.areas[0];
-    const bbox=polyBBox(area.pts);
-    const r=state.defaultSpr.radiusM;
-    const step=(r*state.scale.pxPerMeter);
+    // Choose the first area for demo (can be extended later)
+    const area = state.areas[0];
+    const bbox = polyBBox(area.pts);
+    const wpx = bbox.maxX - bbox.minX;
+    const hpx = bbox.maxY - bbox.minY;
+    const wM = wpx / state.scale.pxPerMeter;
+    const hM = hpx / state.scale.pxPerMeter;
 
-    const placed=[];
+    // Demo heuristic: choose radius so roughly 2..4 sprinklers fit across min dimension
+    const minDim = Math.max(1, Math.min(wM, hM));
+    const targetR = clamp(minDim/3.2, 2.5, 9.5);
+    let chosen = PRESETS.filter(p=>p.key!=="CUSTOM").reduce((best,p)=>{
+      const d = Math.abs(p.radiusM - targetR);
+      return d < best.d ? {p,d} : best;
+    }, {p:PRESETS[2], d:Infinity}).p;
+
+    // apply chosen to default (demo)
+    state.defaultSpr.presetKey = chosen.key;
+    state.defaultSpr.radiusM = chosen.radiusM;
+    state.defaultSpr.mmh = chosen.mmh;
+    state.defaultSpr.name = `Regner ${chosen.label}`;
+
+    const step = (state.defaultSpr.radiusM * state.scale.pxPerMeter); // head-to-head demo
+    const placed = [];
+
+    function pointInPoly(pt, poly){
+      let inside=false;
+      for(let i=0,j=poly.length-1;i<poly.length;j=i++){
+        const xi=poly[i].x, yi=poly[i].y;
+        const xj=poly[j].x, yj=poly[j].y;
+        const intersect=((yi>pt.y)!=(yj>pt.y)) && (pt.x < (xj-xi)*(pt.y-yi)/(yj-yi+1e-9)+xi);
+        if(intersect) inside=!inside;
+      }
+      return inside;
+    }
+
+    // zone allocation: fill zone 1 until max, then zone 2...
+    const totals = zoneTotals();
+    function pickZoneIdFor(pr){
+      // pick the first zone that has capacity left (demo)
+      for(const z of state.zones){
+        const current = totals.get(z.id) || 0;
+        if(current + pr.lpm <= z.maxLpm){
+          totals.set(z.id, current + pr.lpm);
+          return z.id;
+        }
+      }
+      // else: just put into first zone (will show warning)
+      const z0 = state.zones[0];
+      totals.set(z0.id, (totals.get(z0.id)||0) + pr.lpm);
+      return z0.id;
+    }
+
+    const pr = presetByKey(state.defaultSpr.presetKey);
+
     function tryPlace(p){
       if(!pointInPoly(p, area.pts)) return;
       for(const q of placed){
@@ -699,34 +815,28 @@
       }
       placed.push(p);
 
-      const key=state.defaultSpr.type||"MP2000";
-      const preset=PRESETS[key]||PRESETS.MP2000;
-
-      const wz = getWaterZoneAt(p);
-      const wzId = wz ? wz.id : (state.defaultSpr.waterZoneId || "");
+      const zoneId = pickZoneIdFor(pr);
 
       state.sprinklers.push({
-        id:uid(),
-        type:key,
-        name:state.defaultSpr.name || `MP Rotator ${preset.name}`,
-        x:p.x,y:p.y,
-        radiusM:state.defaultSpr.radiusM ?? preset.radiusM,
-        arcDeg:state.defaultSpr.arcDeg ?? 360,
-        dirDeg:state.defaultSpr.dirDeg ?? 0,
-        mmh:state.defaultSpr.mmh ?? preset.mmh,
-        slopeFactorPct:state.defaultSpr.slopeFactorPct ?? 3,
-        waterZoneId: wzId
+        id: uid(),
+        presetKey: state.defaultSpr.presetKey,
+        name: state.defaultSpr.name,
+        x: p.x, y: p.y,
+        radiusM: state.defaultSpr.radiusM,
+        arcDeg: state.defaultSpr.arcDeg,
+        dirDeg: state.defaultSpr.dirDeg,
+        mmh: state.defaultSpr.mmh,
+        zoneId
       });
     }
 
-    // Randpunkte + Innenraster (Demo)
     for(let x=bbox.minX; x<=bbox.maxX; x+=step){
-      tryPlace({x,y:bbox.minY});
-      tryPlace({x,y:bbox.maxY});
+      tryPlace({x, y:bbox.minY});
+      tryPlace({x, y:bbox.maxY});
     }
     for(let y=bbox.minY; y<=bbox.maxY; y+=step){
-      tryPlace({x:bbox.minX,y});
-      tryPlace({x:bbox.maxX,y});
+      tryPlace({x:bbox.minX, y});
+      tryPlace({x:bbox.maxX, y});
     }
     for(let y=bbox.minY+step; y<=bbox.maxY-step; y+=step){
       for(let x=bbox.minX+step; x<=bbox.maxX-step; x+=step){
@@ -734,8 +844,8 @@
       }
     }
 
-    renderWaterZonesList();
-    updateSprWaterZoneOptions();
+    renderZones();
+    updateSprZoneOptions();
     buildBOM();
     recalcHeat();
     renderSteps();
@@ -746,281 +856,37 @@
     if(!confirm("Alle Regner löschen?")) return;
     state.sprinklers=[];
     state.selection=null;
-    renderWaterZonesList();
-    updateSprWaterZoneOptions();
-    buildBOM();
-    recalcHeat();
-    renderSteps();
-    showProps();
-    render();
+    renderZones(); buildBOM(); recalcHeat(); renderSteps(); showProps(); render();
   });
 
-  // Selection + props
-  function getSel(kind){
-    if(state.selection?.kind!==kind) return null;
-    if(kind==='sprinkler') return state.sprinklers.find(s=>s.id===state.selection.id)||null;
-    if(kind==='pipe') return state.pipes.find(p=>p.id===state.selection.id)||null;
-    if(kind==='source') return (state.source && state.source.id===state.selection.id) ? state.source : null;
-    if(kind==='elev') return state.elevZones.find(z=>z.id===state.selection.id)||null;
-    if(kind==='waterZone') return state.waterZones.find(z=>z.id===state.selection.id)||null;
-    return null;
-  }
-
-  function showProps(){
-    const sel=state.selection;
-    el('propsNone').style.display = (!sel && !(tool==='scale' && state.scale.a && state.scale.b)) ? 'block' : 'none';
-    el('propsScale').style.display = (tool==='scale' && state.scale.a && state.scale.b) ? 'block' : 'none';
-
-    el('propsSource').style.display = (sel?.kind==='source') ? 'block' : 'none';
-    el('propsSprinkler').style.display = (sel?.kind==='sprinkler') ? 'block' : 'none';
-    el('propsPipe').style.display = (sel?.kind==='pipe') ? 'block' : 'none';
-    el('propsElev').style.display = (sel?.kind==='elev') ? 'block' : 'none';
-    el('propsWaterZonePoly').style.display = (sel?.kind==='waterZone') ? 'block' : 'none';
-
-    if(sel?.kind==='source') syncSourceForm();
-    if(sel?.kind==='sprinkler') syncSprForm();
-    if(sel?.kind==='pipe') syncPipeForm();
-    if(sel?.kind==='elev') syncElevForm();
-    if(sel?.kind==='waterZone') syncWZForm();
-  }
-
-  function syncSourceForm(){
-    const s=getSel('source'); if(!s) return;
-    el('srcName').value=s.name;
-    el('srcInfo').value=s.info||"";
-  }
-  function syncSprForm(){
-    const s=getSel('sprinkler'); if(!s) return;
-    el('sprPreset').value = PRESETS[s.type] ? s.type : "CUSTOM";
-    el('sprName').value=s.name;
-    el('sprRadius').value=s.radiusM;
-    el('sprArc').value=s.arcDeg;
-    el('sprDir').value=s.dirDeg;
-    el('sprMmH').value=s.mmh;
-    el('slopeFactor').value=s.slopeFactorPct ?? 3;
-    updateSprWaterZoneOptions();
-    el('sprWaterZone').value = s.waterZoneId || "";
-  }
-  function syncPipeForm(){
-    const p=getSel('pipe'); if(!p) return;
-    el('pipeName').value=p.name;
-    el('pipeDia').value=p.dia;
-  }
-  function syncElevForm(){
-    const z=getSel('elev'); if(!z) return;
-    el('elevName').value=z.name;
-    el('elevMeters').value=z.meters;
-  }
-  function syncWZForm(){
-    const z=getSel('waterZone'); if(!z) return;
-    el('wzName').value=z.name;
-    el('wzMaxLpm').value=z.maxLpm ?? 20;
-  }
-
-  // Source edits
-  el('srcName').addEventListener('input', ()=>{
-    const s=getSel('source'); if(!s) return;
-    s.name=el('srcName').value||s.name;
-    renderSteps(); render();
-  });
-  el('srcInfo').addEventListener('input', ()=>{
-    const s=getSel('source'); if(!s) return;
-    s.info=el('srcInfo').value||"";
-    render();
-  });
-  el('btnDeleteSource').addEventListener('click', ()=>{
-    state.source=null;
-    state.selection=null;
-    renderSteps(); showProps(); render();
-  });
-
-  // WaterZone edits
-  el('wzName').addEventListener('input', ()=>{
-    const z=getSel('waterZone'); if(!z) return;
-    z.name=el('wzName').value||z.name;
-    renderWaterZonesList();
-    updateSprWaterZoneOptions();
-    buildBOM();
-    render();
-  });
-  el('wzMaxLpm').addEventListener('input', ()=>{
-    const z=getSel('waterZone'); if(!z) return;
-    z.maxLpm=parseFloat(el('wzMaxLpm').value||"0");
-    renderWaterZonesList();
-  });
-  el('btnDeleteWaterZonePoly').addEventListener('click', ()=>{
-    const z=getSel('waterZone'); if(!z) return;
-    state.waterZones=state.waterZones.filter(x=>x.id!==z.id);
-    for(const s of state.sprinklers) if(s.waterZoneId===z.id) s.waterZoneId="";
-    state.selection=null;
-    renderWaterZonesList();
-    updateSprWaterZoneOptions();
-    buildBOM();
-    renderSteps();
-    showProps();
-    render();
-  });
-
-  // Sprinkler edits
-  el('sprWaterZone').addEventListener('change', ()=>{
-    const s=getSel('sprinkler');
-    if(s){
-      s.waterZoneId = el('sprWaterZone').value || "";
-      renderWaterZonesList();
-      buildBOM();
-      render();
-    } else {
-      state.defaultSpr.waterZoneId = el('sprWaterZone').value || "";
-    }
-  });
-
-  el('sprPreset').addEventListener('change', ()=>{
-    const val=el('sprPreset').value;
-    const s=getSel('sprinkler');
-    if(s){
-      if(val==="CUSTOM"){ s.type="CUSTOM"; renderWaterZonesList(); buildBOM(); recalcHeat(); render(); return; }
-      const p=PRESETS[val];
-      s.type=val;
-      s.name=`MP Rotator ${p.name}`;
-      s.radiusM=p.radiusM;
-      s.mmh=p.mmh;
-      syncSprForm();
-      renderWaterZonesList(); buildBOM(); recalcHeat(); render();
-    } else {
-      if(val!=="CUSTOM"){
-        const p=PRESETS[val];
-        state.defaultSpr.type=val;
-        state.defaultSpr.radiusM=p.radiusM;
-        state.defaultSpr.mmh=p.mmh;
-        state.defaultSpr.name=`MP Rotator ${p.name}`;
-      }
-    }
-  });
-
-  ['sprName','sprRadius','sprArc','sprDir','sprMmH','slopeFactor'].forEach(id=>{
-    el(id).addEventListener('input', ()=>{
-      const s=getSel('sprinkler');
-      const upd = {
-        name: el('sprName').value || (s?.name ?? state.defaultSpr.name),
-        radiusM: clamp(parseFloat(el('sprRadius').value||"1"),0.2,200),
-        arcDeg: clamp(parseFloat(el('sprArc').value||"360"),30,360),
-        dirDeg: ((parseFloat(el('sprDir').value||"0")%360)+360)%360,
-        mmh: clamp(parseFloat(el('sprMmH').value||"10"),0.1,200),
-        slopeFactorPct: clamp(parseFloat(el('slopeFactor').value||"3"),0,25),
-      };
-      if(s){
-        Object.assign(s, upd);
-        // update default template too
-        Object.assign(state.defaultSpr, { ...upd, type:s.type, waterZoneId:s.waterZoneId });
-        renderWaterZonesList(); buildBOM(); recalcHeat(); render();
-      } else {
-        Object.assign(state.defaultSpr, upd);
-      }
-    });
-  });
-
-  el('btnDeleteSpr').addEventListener('click', ()=>{
-    const s=getSel('sprinkler'); if(!s) return;
-    state.sprinklers=state.sprinklers.filter(x=>x.id!==s.id);
-    state.selection=null;
-    renderWaterZonesList();
-    updateSprWaterZoneOptions();
-    buildBOM();
-    recalcHeat();
-    renderSteps();
-    showProps();
-    render();
-  });
-
-  el('btnCopySpr').addEventListener('click', ()=>{
-    const s=getSel('sprinkler'); if(!s) return;
-    const c={...s, id:uid(), x:s.x+20, y:s.y+20};
-    state.sprinklers.push(c);
-    state.selection={kind:'sprinkler', id:c.id};
-    renderWaterZonesList();
-    updateSprWaterZoneOptions();
-    buildBOM();
-    recalcHeat();
-    renderSteps();
-    showProps();
-    render();
-  });
-
-  // Pipe edits
-  el('pipeName').addEventListener('input', ()=>{
-    const p=getSel('pipe'); if(!p) return;
-    p.name=el('pipeName').value||p.name;
-    buildBOM(); render();
-  });
-  el('pipeDia').addEventListener('input', ()=>{
-    const p=getSel('pipe'); if(!p) return;
-    p.dia=parseInt(el('pipeDia').value||"25",10);
-    buildBOM(); render();
-  });
-  el('btnDeletePipe').addEventListener('click', ()=>{
-    const p=getSel('pipe'); if(!p) return;
-    state.pipes=state.pipes.filter(x=>x.id!==p.id);
-    state.selection=null;
-    buildBOM(); recalcHeat(); renderSteps(); showProps(); render();
-  });
-
-  // Elev edits
-  el('elevName').addEventListener('input', ()=>{
-    const z=getSel('elev'); if(!z) return;
-    z.name=el('elevName').value||z.name;
-    recalcHeat(); render();
-  });
-  el('elevMeters').addEventListener('input', ()=>{
-    const z=getSel('elev'); if(!z) return;
-    z.meters=parseFloat(el('elevMeters').value||"0");
-    recalcHeat(); render();
-  });
-  el('btnDeleteElevPoly').addEventListener('click', ()=>{
-    const z=getSel('elev'); if(!z) return;
-    state.elevZones=state.elevZones.filter(x=>x.id!==z.id);
-    state.selection=null;
-    recalcHeat(); renderSteps(); showProps(); render();
-  });
-
-  // Keyboard
+  // --- Shortcuts ---
   window.addEventListener('keydown', (e)=>{
     if(e.code==='Space') spacePan=true;
     if(e.code==='Escape'){
-      drawing={kind:null,pts:[],temp:null,snap:null};
+      drawing = {kind:null, pts:[], temp:null, snap:null};
       state.scale.a=null; state.scale.b=null;
       showProps(); render();
     }
   });
   window.addEventListener('keyup', (e)=>{ if(e.code==='Space') spacePan=false; });
 
-  // Hit test
-  function hitTest(w){
-    // sprinklers
-    for(let i=state.sprinklers.length-1;i>=0;i--){
-      const s=state.sprinklers[i];
-      if(Math.hypot(w.x-s.x,w.y-s.y) < 12/view.s) return {kind:'sprinkler', id:s.id};
-    }
-    // source
-    if(state.source && Math.hypot(w.x-state.source.x,w.y-state.source.y) < 14/view.s){
-      return {kind:'source', id:state.source.id};
-    }
-    // pipes
-    for(let i=state.pipes.length-1;i>=0;i--){
-      const p=state.pipes[i];
-      if(p.pts?.length>=2 && isNearPolyline(w,p.pts, 10/view.s)) return {kind:'pipe', id:p.id};
-    }
-    // water zones
-    for(let i=state.waterZones.length-1;i>=0;i--){
-      const z=state.waterZones[i];
-      if(z.pts?.length>=3 && pointInPoly(w,z.pts)) return {kind:'waterZone', id:z.id};
-    }
-    // elev zones
-    for(let i=state.elevZones.length-1;i>=0;i--){
-      const z=state.elevZones[i];
-      if(z.pts?.length>=3 && pointInPoly(w,z.pts)) return {kind:'elev', id:z.id};
-    }
-    return null;
+  // --- Geometry helpers ---
+  function polyBBox(pts){
+    let minX=Infinity,minY=Infinity,maxX=-Infinity,maxY=-Infinity;
+    for(const p of pts){ minX=Math.min(minX,p.x); minY=Math.min(minY,p.y); maxX=Math.max(maxX,p.x); maxY=Math.max(maxY,p.y); }
+    return {minX,minY,maxX,maxY};
   }
+  function pointInPoly(pt, poly){
+    let inside=false;
+    for(let i=0,j=poly.length-1;i<poly.length;j=i++){
+      const xi=poly[i].x, yi=poly[i].y;
+      const xj=poly[j].x, yj=poly[j].y;
+      const intersect=((yi>pt.y)!=(yj>pt.y)) && (pt.x < (xj-xi)*(pt.y-yi)/(yj-yi+1e-9)+xi);
+      if(intersect) inside=!inside;
+    }
+    return inside;
+  }
+
   function isNearPolyline(pt, pts, tol){
     for(let i=0;i<pts.length-1;i++){
       if(distToSegment(pt, pts[i], pts[i+1]) <= tol) return true;
@@ -1039,7 +905,27 @@
     return Math.hypot(p.x-px,p.y-py);
   }
 
-  // Mouse
+  // --- Hit test ---
+  function hitTest(w){
+    for(let i=state.sprinklers.length-1;i>=0;i--){
+      const s=state.sprinklers[i];
+      if(Math.hypot(w.x-s.x,w.y-s.y) < 12/view.s) return {kind:'sprinkler', id:s.id};
+    }
+    if(state.source && Math.hypot(w.x-state.source.x,w.y-state.source.y) < 14/view.s){
+      return {kind:'source', id:state.source.id};
+    }
+    for(let i=state.pipes.length-1;i>=0;i--){
+      const p=state.pipes[i];
+      if(p.pts?.length>=2 && isNearPolyline(w,p.pts, 10/view.s)) return {kind:'pipe', id:p.id};
+    }
+    for(let i=state.areas.length-1;i>=0;i--){
+      const a=state.areas[i];
+      if(a.pts?.length>=3 && pointInPoly(w,a.pts)) return {kind:'area', id:a.id};
+    }
+    return null;
+  }
+
+  // --- Mouse ---
   canvas.addEventListener('mousedown', (e)=>{
     mouse.down=true;
     mouse.last={x:e.offsetX,y:e.offsetY};
@@ -1049,7 +935,7 @@
     if(tool==='pan') return;
 
     if(tool==='select'){
-      state.selection=hitTest(w);
+      state.selection = hitTest(w);
       showProps(); render();
       return;
     }
@@ -1063,66 +949,51 @@
     }
 
     if(tool==='source'){
-      state.source={id:uid(), name:"Wasserhahn", info:"", x:w.x, y:w.y};
-      state.selection={kind:'source', id:state.source.id};
+      state.source = { id:uid(), name:"Wasserhahn", info:"", x:w.x, y:w.y };
+      state.selection = {kind:'source', id: state.source.id};
       renderSteps(); showProps(); render();
       return;
     }
 
     if(tool==='sprinkler'){
-      if(!state.scale.pxPerMeter){ alert("Bitte zuerst Maßstab setzen (Schritt 2)."); return; }
-      if(!state.source){ alert("Bitte zuerst Wasserquelle setzen (Schritt 3)."); return; }
+      if(!state.scale.pxPerMeter){ alert("Bitte Maßstab setzen (Schritt 2)."); return; }
+      if(!state.source){ alert("Bitte Wasserquelle setzen (Schritt 3)."); return; }
+      ensureZones();
+      const pr = presetByKey(state.defaultSpr.presetKey);
 
-      const key=state.defaultSpr.type||"MP2000";
-      const p=PRESETS[key]||PRESETS.MP2000;
-
-      const wz = getWaterZoneAt(w);
-      const wzId = wz ? wz.id : (state.defaultSpr.waterZoneId || "");
-
-      const s={
-        id:uid(),
-        type:key,
-        name:state.defaultSpr.name || `MP Rotator ${p.name}`,
+      const s = {
+        id: uid(),
+        presetKey: state.defaultSpr.presetKey,
+        name: state.defaultSpr.name || `Regner ${pr.label}`,
         x:w.x,y:w.y,
-        radiusM:state.defaultSpr.radiusM ?? p.radiusM,
-        arcDeg:state.defaultSpr.arcDeg ?? 360,
-        dirDeg:state.defaultSpr.dirDeg ?? 0,
-        mmh:state.defaultSpr.mmh ?? p.mmh,
-        slopeFactorPct:state.defaultSpr.slopeFactorPct ?? 3,
-        waterZoneId: wzId
+        radiusM: state.defaultSpr.radiusM ?? pr.radiusM,
+        arcDeg: state.defaultSpr.arcDeg ?? 360,
+        dirDeg: state.defaultSpr.dirDeg ?? 0,
+        mmh: state.defaultSpr.mmh ?? pr.mmh,
+        zoneId: state.defaultSpr.zoneId || state.zones[0].id
       };
       state.sprinklers.push(s);
-      state.selection={kind:'sprinkler', id:s.id};
-      renderWaterZonesList();
-      updateSprWaterZoneOptions();
-      buildBOM(); recalcHeat(); renderSteps(); showProps(); render();
+      state.selection = {kind:'sprinkler', id:s.id};
+      renderZones(); buildBOM(); recalcHeat(); renderSteps(); showProps(); render();
       return;
     }
 
-    if(tool==='waterZone' || tool==='area' || tool==='pipe' || tool==='elev'){
+    if(tool==='area' || tool==='pipe'){
       if(!drawing.kind) drawing.kind=tool;
       if(drawing.kind!==tool) drawing={kind:tool, pts:[], temp:null, snap:null};
 
       let use=w;
-
       if(tool==='pipe'){
         const snap=nearestSnapPoint(w);
         drawing.snap=snap;
         if(snap) use={x:snap.x,y:snap.y};
       }
 
-      // close by clicking near first
-      if(drawing.pts.length>=3 && (tool==='waterZone' || tool==='area' || tool==='elev')){
-        if(dist(use, drawing.pts[0]) <= closeThresholdWorld()){
-          finalizeDrawing(true);
-          return;
-        }
+      if(drawing.pts.length>=3 && tool==='area'){
+        if(dist(use, drawing.pts[0]) <= closeThresholdWorld()){ finalizeDrawing(true); return; }
       }
       if(drawing.pts.length>=2 && tool==='pipe'){
-        if(dist(use, drawing.pts[0]) <= closeThresholdWorld()){
-          finalizeDrawing(true);
-          return;
-        }
+        if(dist(use, drawing.pts[0]) <= closeThresholdWorld()){ finalizeDrawing(true); return; }
       }
 
       drawing.pts.push(use);
@@ -1157,15 +1028,7 @@
     if(tool==='select' && state.selection){
       if(state.selection.kind==='sprinkler'){
         const s=getSel('sprinkler');
-        if(s){
-          s.x=w.x; s.y=w.y;
-          // auto zone assignment while dragging
-          const wz=getWaterZoneAt(w);
-          if(wz) s.waterZoneId=wz.id;
-          recalcHeat();
-          renderWaterZonesList();
-          render();
-        }
+        if(s){ s.x=w.x; s.y=w.y; recalcHeat(); renderZones(); render(); }
       }
       if(state.selection.kind==='source'){
         const s=getSel('source');
@@ -1189,7 +1052,7 @@
   }, {passive:false});
 
   canvas.addEventListener('dblclick', ()=>{
-    if(['waterZone','area','pipe','elev'].includes(tool)){
+    if(['area','pipe'].includes(tool)){
       if(drawing.kind===tool && drawing.pts.length >= (tool==='pipe'?2:3)){
         finalizeDrawing(false);
       }
@@ -1197,14 +1060,14 @@
   });
 
   function finalizeDrawing(forceClose){
-    const kind=drawing.kind;
+    const kind = drawing.kind;
     if(!kind) return;
 
     if(kind==='pipe'){
       if(drawing.pts.length<2){ drawing={kind:null,pts:[],temp:null,snap:null}; render(); return; }
       const pts=[...drawing.pts];
       if(forceClose) pts.push(pts[0]);
-      const p={id:uid(), name:`Rohr ${state.pipes.length+1}`, dia:25, pts};
+      const p={id:uid(), name:`Leitung ${state.pipes.length+1}`, dia:25, pts};
       state.pipes.push(p);
       state.selection={kind:'pipe', id:p.id};
       buildBOM(); recalcHeat(); renderSteps(); showProps();
@@ -1214,47 +1077,43 @@
 
     if(kind==='area'){
       if(drawing.pts.length<3){ drawing={kind:null,pts:[],temp:null,snap:null}; render(); return; }
-      state.areas.push({id:uid(), name:`Fläche ${state.areas.length+1}`, pts:[...drawing.pts]});
-      recalcHeat(); renderSteps();
-      drawing={kind:null,pts:[],temp:null,snap:null};
-      render(); return;
-    }
-
-    if(kind==='waterZone'){
-      if(drawing.pts.length<3){ drawing={kind:null,pts:[],temp:null,snap:null}; render(); return; }
-      // assign polygon to last created zone without pts, else create new
-      let z = [...state.waterZones].reverse().find(x=>!x.pts || x.pts.length<3);
-      if(!z){
-        z={id:uid(), name:`Zone ${state.waterZones.length+1}`, maxLpm:20, pts:[]};
-        state.waterZones.push(z);
-      }
-      z.pts=[...drawing.pts];
-      state.selection={kind:'waterZone', id:z.id};
-      // reassign sprinklers that are inside
-      for(const s of state.sprinklers){
-        if(pointInPoly({x:s.x,y:s.y}, z.pts)) s.waterZoneId=z.id;
-      }
-      renderWaterZonesList();
-      updateSprWaterZoneOptions();
-      buildBOM();
-      renderSteps();
-      showProps();
-      drawing={kind:null,pts:[],temp:null,snap:null};
-      render(); return;
-    }
-
-    if(kind==='elev'){
-      if(drawing.pts.length<3){ drawing={kind:null,pts:[],temp:null,snap:null}; render(); return; }
-      const z={id:uid(), name:`Höhenzone ${state.elevZones.length+1}`, meters:0.5, pts:[...drawing.pts]};
-      state.elevZones.push(z);
-      state.selection={kind:'elev', id:z.id};
+      const a={id:uid(), name:`Fläche ${state.areas.length+1}`, pts:[...drawing.pts]};
+      state.areas.push(a);
+      state.selection={kind:'area', id:a.id};
       recalcHeat(); renderSteps(); showProps();
       drawing={kind:null,pts:[],temp:null,snap:null};
       render(); return;
     }
   }
 
-  // Area / elev masks
+  // --- BOM ---
+  function buildBOM(){
+    const bom=new Map();
+    if(state.source) bom.set("Wasserquelle (Demo)", 1);
+    for(const z of state.zones) bom.set(`Zone/Ventil (Demo): ${z.name}`, 1);
+    for(const p of state.pipes){
+      const key = `Rohr ${p.dia}mm — ${p.name}`;
+      bom.set(key,(bom.get(key)||0)+1);
+    }
+    for(const s of state.sprinklers){
+      const pr = presetByKey(s.presetKey);
+      const key = `${pr.label} — ${s.name}`;
+      bom.set(key,(bom.get(key)||0)+1);
+    }
+    const ul=el('bom'); ul.innerHTML="";
+    if(bom.size===0){
+      const li=document.createElement('li');
+      li.innerHTML=`<span class="small">Noch keine Teile</span><span class="small">0</span>`;
+      ul.appendChild(li); return;
+    }
+    [...bom.entries()].sort((a,b)=>b[1]-a[1]).forEach(([k,v])=>{
+      const li=document.createElement('li');
+      li.innerHTML=`<span>${k}<div class="small">Demo</div></span><span style="font-weight:950;">${v}</span>`;
+      ul.appendChild(li);
+    });
+  }
+
+  // --- Heat / KPIs ---
   function getAreaMask(pt){
     if(state.areas.length===0) return true;
     for(const a of state.areas){
@@ -1262,15 +1121,7 @@
     }
     return false;
   }
-  function getElevationAt(pt){
-    for(let i=state.elevZones.length-1;i>=0;i--){
-      const z=state.elevZones[i];
-      if(z.pts?.length>=3 && pointInPoly(pt,z.pts)) return z.meters||0;
-    }
-    return 0;
-  }
 
-  // Heat
   function recalcHeat(){
     state.heat.ready=false; state.heat.data=null;
     if(!state.scale.pxPerMeter || state.sprinklers.length===0){ updateKPIs(null); return; }
@@ -1290,12 +1141,12 @@
     }
     if(!isFinite(minX)){ updateKPIs(null); return; }
 
-    const cellPx=state.heat.cellPx;
-    const w=Math.ceil((maxX-minX)/cellPx);
-    const h=Math.ceil((maxY-minY)/cellPx);
-    const data=new Float32Array(w*h);
+    const cellPx = state.heat.cellPx;
+    const w = Math.ceil((maxX-minX)/cellPx);
+    const h = Math.ceil((maxY-minY)/cellPx);
+    const data = new Float32Array(w*h);
     const values=[];
-    const target=state.targetMmh||10;
+    const target = state.targetMmh || 10;
 
     for(let j=0;j<h;j++){
       for(let i=0;i<w;i++){
@@ -1308,14 +1159,7 @@
         for(const s of state.sprinklers){
           const dx=pt.x-s.x, dy=pt.y-s.y;
           const d=Math.hypot(dx,dy);
-
-          const elevS=getElevationAt({x:s.x,y:s.y});
-          const elevP=getElevationAt(pt);
-          const delta=(elevP-elevS);
-          const slopePct=(s.slopeFactorPct ?? 3)/100;
-          const radiusM_eff = clamp(s.radiusM * (1 - slopePct*delta), 0.2, 200);
-          const rpx = radiusM_eff * state.scale.pxPerMeter;
-
+          const rpx = s.radiusM * state.scale.pxPerMeter;
           if(d>rpx) continue;
 
           const ang=(Math.atan2(dy,dx)*180/Math.PI+360)%360;
@@ -1367,33 +1211,7 @@
     overEl.textContent=Math.round(over/values.length*100)+"%";
   }
 
-  // BOM (Demo)
-  function buildBOM(){
-    const bom=new Map();
-    if(state.source) bom.set("Wasserquelle (Demo)", 1);
-    for(const z of state.waterZones) bom.set(`Ventil/Zonen-Kreis (Demo): ${z.name}`, 1);
-    for(const p of state.pipes){
-      const key=`Rohr ${p.dia}mm — ${p.name}`;
-      bom.set(key,(bom.get(key)||0)+1);
-    }
-    for(const s of state.sprinklers){
-      const key=`${s.type||"CUSTOM"} — ${s.name}`;
-      bom.set(key,(bom.get(key)||0)+1);
-    }
-    const ul=el('bom'); ul.innerHTML="";
-    if(bom.size===0){
-      const li=document.createElement('li');
-      li.innerHTML=`<span class="small">Noch keine Teile</span><span class="small">0</span>`;
-      ul.appendChild(li); return;
-    }
-    [...bom.entries()].sort((a,b)=>b[1]-a[1]).forEach(([k,v])=>{
-      const li=document.createElement('li');
-      li.innerHTML=`<span>${k}<div class="small">Demo</div></span><span style="font-weight:950;">${v}</span>`;
-      ul.appendChild(li);
-    });
-  }
-
-  // Drawing helpers
+  // --- Drawing primitives ---
   function drawLine(a,b,color,lw){
     const p1=worldToScreen(a), p2=worldToScreen(b);
     ctx.save(); ctx.strokeStyle=color; ctx.lineWidth=lw;
@@ -1440,9 +1258,8 @@
 
   function drawGrid(){
     const step=50;
-    const rect=canvas.getBoundingClientRect();
     const topLeft=screenToWorld({x:0,y:0});
-    const bottomRight=screenToWorld({x:rect.width,y:rect.height});
+    const bottomRight=screenToWorld({x:cssW,y:cssH});
     const startX=Math.floor(topLeft.x/step)*step;
     const startY=Math.floor(topLeft.y/step)*step;
     const endX=Math.ceil(bottomRight.x/step)*step;
@@ -1476,9 +1293,9 @@
   }
 
   function drawSprinkler(s){
+    const pr = presetByKey(s.presetKey);
     const p=worldToScreen({x:s.x,y:s.y});
-    const rpx=state.scale.pxPerMeter ? s.radiusM*state.scale.pxPerMeter : 80;
-    const rr=rpx*view.s;
+    const rr = (s.radiusM * state.scale.pxPerMeter) * view.s;
 
     const arc=(s.arcDeg||360)*Math.PI/180;
     const dir=(s.dirDeg||0)*Math.PI/180;
@@ -1495,11 +1312,11 @@
     ctx.fillStyle='rgba(76,201,240,.95)';
     ctx.beginPath(); ctx.arc(p.x,p.y,4.5,0,Math.PI*2); ctx.fill();
 
-    const zn = state.waterZones.find(z=>z.id===s.waterZoneId)?.name || "";
+    const zn = state.zones.find(z=>z.id===s.zoneId)?.name || "";
     ctx.font='12px ui-sans-serif,system-ui';
     ctx.fillStyle='rgba(230,237,243,.9)';
     ctx.textAlign='left'; ctx.textBaseline='top';
-    ctx.fillText(`${s.name} • ${s.radiusM.toFixed(1)}m • ${s.arcDeg}°${zn ? " • "+zn : ""}`, p.x+8, p.y+6);
+    ctx.fillText(`${pr.label} • ${s.radiusM.toFixed(1)}m • ${zn}`, p.x+8, p.y+6);
     ctx.restore();
   }
 
@@ -1519,7 +1336,7 @@
 
   function drawPipes(){
     for(const p of state.pipes){
-      drawPoly(p.pts,null,'rgba(251,191,36,.75)',3,false,null);
+      drawPoly(p.pts, null, 'rgba(251,191,36,.75)', 3, false, null);
       if(p.pts?.length){
         drawLabel(p.pts[Math.floor(p.pts.length/2)], `${p.name} • ${p.dia}mm`, 'rgba(251,191,36,.95)');
       }
@@ -1529,20 +1346,21 @@
   function drawSnapIndicator(){
     if(!(tool==='pipe' && drawing.kind==='pipe')) return;
     if(!drawing.snap) return;
-    const s=worldToScreen({x:drawing.snap.x,y:drawing.snap.y});
+    const s = worldToScreen({x:drawing.snap.x,y:drawing.snap.y});
     ctx.save();
     ctx.strokeStyle='rgba(167,139,250,.95)';
     ctx.lineWidth=2;
-    ctx.beginPath(); ctx.arc(s.x,s.y,18,0,Math.PI*2); ctx.stroke();
+    ctx.beginPath(); ctx.arc(s.x,s.y,18,0,Math.PI*2);
+    ctx.stroke();
     ctx.fillStyle='rgba(167,139,250,.95)';
     ctx.font='12px ui-sans-serif,system-ui';
     ctx.fillText("SNAP", s.x+22, s.y-6);
     ctx.restore();
   }
 
-  // Render
+  // --- Render (FIX: clear in CSS px) ---
   function render(){
-    ctx.clearRect(0,0,canvas.width,canvas.height);
+    ctx.clearRect(0,0,cssW,cssH);
 
     if(state.bg.img){
       const p0=worldToScreen({x:0,y:0});
@@ -1552,42 +1370,23 @@
     if(state.showGrid) drawGrid();
     if(state.showHeat && state.heat.ready) drawHeat();
 
-    // Bewässerungszonen (violett)
-    for(const z of state.waterZones){
-      if(z.pts?.length>=3) drawPoly(z.pts,'rgba(167,139,250,.10)','rgba(167,139,250,.85)',2,true,`${z.name}`);
-    }
-
-    // zu bewässernde Fläche (blau)
     for(const a of state.areas){
-      if(a.pts?.length>=3) drawPoly(a.pts,'rgba(76,201,240,.16)','rgba(76,201,240,.90)',2,true,a.name);
-    }
-
-    // Höhenzonen (gelb)
-    for(const z of state.elevZones){
-      if(z.pts?.length>=3) drawPoly(z.pts,'rgba(251,191,36,.10)','rgba(251,191,36,.85)',2,true,`${z.name} (${z.meters}m)`);
+      drawPoly(a.pts,'rgba(76,201,240,.16)','rgba(76,201,240,.90)',2,true,a.name);
     }
 
     drawPipes();
 
-    // drawing preview
     if(drawing.kind && drawing.pts.length){
       const pts = drawing.temp ? [...drawing.pts, drawing.temp] : drawing.pts;
       if(drawing.kind==='pipe'){
         drawPoly(pts,null,'rgba(251,191,36,1)',3,false,null);
         drawPoint(drawing.pts[0],'rgba(251,191,36,.95)',6);
-      } else if(drawing.kind==='waterZone'){
-        drawPoly(pts,'rgba(167,139,250,.06)','rgba(167,139,250,1)',2,false,null);
-        drawPoint(drawing.pts[0],'rgba(167,139,250,1)',6);
       } else if(drawing.kind==='area'){
         drawPoly(pts,'rgba(76,201,240,.06)','rgba(76,201,240,1)',2,false,null);
         drawPoint(drawing.pts[0],'rgba(76,201,240,1)',6);
-      } else if(drawing.kind==='elev'){
-        drawPoly(pts,'rgba(251,191,36,.06)','rgba(251,191,36,1)',2,false,null);
-        drawPoint(drawing.pts[0],'rgba(251,191,36,1)',6);
       }
     }
 
-    // scale points
     if(state.scale.a) drawPoint(state.scale.a,'rgba(251,191,36,.95)',6);
     if(state.scale.b) drawPoint(state.scale.b,'rgba(251,191,36,.95)',6);
     if(state.scale.a && state.scale.b){
@@ -1602,7 +1401,6 @@
 
     drawSnapIndicator();
 
-    // selection highlight
     if(state.selection?.kind==='sprinkler'){
       const s=getSel('sprinkler'); if(s) drawPoint({x:s.x,y:s.y},'rgba(76,201,240,1)',10);
     }
@@ -1611,183 +1409,63 @@
     }
   }
 
-  // Hit: poly mask for heat
-  function getAreaMask(pt){
-    if(state.areas.length===0) return true;
-    for(const a of state.areas){
-      if(a.pts?.length>=3 && pointInPoly(pt,a.pts)) return true;
-    }
-    return false;
-  }
+  // --- Mode selection (simple) ---
+  // We keep tool switching via steps; selection available when holding Alt? (simple: use tool name based on step)
+  // For now, selection tool is implicit: click on objects when holding Shift
+  // (to keep UI minimal, we don't show a Tools bar)
+  // We'll implement: if SHIFT is held, treat click as "select"
+  let shiftSelect = false;
+  window.addEventListener('keydown', (e)=>{ if(e.key==="Shift") shiftSelect=true; });
+  window.addEventListener('keyup', (e)=>{ if(e.key==="Shift") shiftSelect=false; });
 
-  // BOM
-  function buildBOM(){
-    const bom=new Map();
-    if(state.source) bom.set("Wasserquelle (Demo)", 1);
-    for(const z of state.waterZones) bom.set(`Bewässerungszone (Demo): ${z.name}`, 1);
-    for(const p of state.pipes) bom.set(`Rohr ${p.dia}mm — ${p.name}`, (bom.get(`Rohr ${p.dia}mm — ${p.name}`)||0)+1);
-    for(const s of state.sprinklers) bom.set(`${s.type||"CUSTOM"} — ${s.name}`, (bom.get(`${s.type||"CUSTOM"} — ${s.name}`)||0)+1);
+  // selection on click when shift pressed
+  canvas.addEventListener('click', (e)=>{
+    if(!shiftSelect) return;
+    const w=screenToWorld({x:e.offsetX,y:e.offsetY});
+    state.selection = hitTest(w);
+    showProps();
+    render();
+  });
 
-    const ul=el('bom'); ul.innerHTML="";
-    if(bom.size===0){
-      const li=document.createElement('li');
-      li.innerHTML=`<span class="small">Noch keine Teile</span><span class="small">0</span>`;
-      ul.appendChild(li); return;
-    }
-    [...bom.entries()].sort((a,b)=>b[1]-a[1]).forEach(([k,v])=>{
-      const li=document.createElement('li');
-      li.innerHTML=`<span>${k}<div class="small">Demo</div></span><span style="font-weight:950;">${v}</span>`;
-      ul.appendChild(li);
-    });
-  }
+  // --- Minimal tool switching hints via steps only ---
+  // But we still need internal tool modes:
+  // setTool('scale'), setTool('source'), setTool('area'), setTool('sprinkler'), setTool('pipe')
 
-  // Heat calc
-  function recalcHeat(){
-    state.heat.ready=false; state.heat.data=null;
-    if(!state.scale.pxPerMeter || state.sprinklers.length===0){ updateKPIs(null); return; }
-
-    let minX=Infinity,minY=Infinity,maxX=-Infinity,maxY=-Infinity;
-    const expand=(p)=>{minX=Math.min(minX,p.x);minY=Math.min(minY,p.y);maxX=Math.max(maxX,p.x);maxY=Math.max(maxY,p.y);};
-
-    if(state.areas.length){
-      for(const a of state.areas) for(const p of a.pts) expand(p);
-    } else if(state.bg.img){
-      expand({x:0,y:0}); expand({x:state.bg.w,y:state.bg.h});
-    } else {
-      for(const s of state.sprinklers){
-        const rpx=s.radiusM*state.scale.pxPerMeter;
-        expand({x:s.x-rpx,y:s.y-rpx}); expand({x:s.x+rpx,y:s.y+rpx});
-      }
-    }
-    if(!isFinite(minX)){ updateKPIs(null); return; }
-
-    const cellPx=state.heat.cellPx;
-    const w=Math.ceil((maxX-minX)/cellPx);
-    const h=Math.ceil((maxY-minY)/cellPx);
-    const data=new Float32Array(w*h);
-    const values=[];
-    const target=state.targetMmh||10;
-
-    for(let j=0;j<h;j++){
-      for(let i=0;i<w;i++){
-        const cx=minX+(i+0.5)*cellPx;
-        const cy=minY+(j+0.5)*cellPx;
-        const pt={x:cx,y:cy};
-        if(!getAreaMask(pt)) continue;
-
-        let mmh=0;
-        for(const s of state.sprinklers){
-          const dx=pt.x-s.x, dy=pt.y-s.y;
-          const d=Math.hypot(dx,dy);
-
-          const elevS=getElevationAt({x:s.x,y:s.y});
-          const elevP=getElevationAt(pt);
-          const delta=(elevP-elevS);
-          const slopePct=(s.slopeFactorPct ?? 3)/100;
-          const radiusM_eff = clamp(s.radiusM * (1 - slopePct*delta), 0.2, 200);
-          const rpx = radiusM_eff * state.scale.pxPerMeter;
-
-          if(d>rpx) continue;
-
-          const ang=(Math.atan2(dy,dx)*180/Math.PI+360)%360;
-          const arc=(s.arcDeg||360);
-          const dir=(s.dirDeg||0);
-          const start=(dir-arc/2+360)%360;
-          const end=(dir+arc/2+360)%360;
-          const inArc = arc>=359 ? true : (start<end ? (ang>=start && ang<=end) : (ang>=start || ang<=end));
-          if(!inArc) continue;
-
-          mmh += (s.mmh * (arc/360));
-        }
-
-        const idx=j*w+i;
-        data[idx]=mmh;
-        values.push(mmh);
-      }
-    }
-
-    state.heat.data={data,w,h};
-    state.heat.bbox={minX,minY,maxX,maxY,cellPx,w,h};
-    state.heat.ready=true;
-    updateKPIs(values.length?values:null);
-  }
-
-  function getElevationAt(pt){
-    for(let i=state.elevZones.length-1;i>=0;i--){
-      const z=state.elevZones[i];
-      if(z.pts?.length>=3 && pointInPoly(pt,z.pts)) return z.meters||0;
-    }
-    return 0;
-  }
-
-  function updateKPIs(values){
-    const withinEl=el('kpiWithin'), cvEl=el('kpiCv'), underEl=el('kpiUnder'), overEl=el('kpiOver');
-    if(!values || values.length===0){
-      withinEl.textContent="–"; cvEl.textContent="–"; underEl.textContent="–"; overEl.textContent="–"; return;
-    }
-    const target=state.targetMmh||10;
-    let sum=0; for(const v of values) sum+=v;
-    const mean=sum/values.length;
-
-    let varSum=0, within=0, under=0, over=0;
-    const lo=target*0.8, hi=target*1.2;
-    for(const v of values){
-      varSum+=(v-mean)*(v-mean);
-      if(v>=lo && v<=hi) within++;
-      else if(v<lo) under++;
-      else over++;
-    }
-    const sd=Math.sqrt(varSum/values.length);
-    const cv = mean>0 ? sd/mean : 0;
-
-    withinEl.textContent=Math.round(within/values.length*100)+"%";
-    cvEl.textContent=cv.toFixed(2);
-    underEl.textContent=Math.round(under/values.length*100)+"%";
-    overEl.textContent=Math.round(over/values.length*100)+"%";
-  }
-
-  // Mouse wheel zoom done above; need heat draw helper
-  function drawHeat(){
-    const {data,w,h}=state.heat.data;
-    const {minX,minY,cellPx}=state.heat.bbox;
-    const target=state.targetMmh||10;
-
-    for(let j=0;j<h;j++){
-      for(let i=0;i<w;i++){
-        const mmh=data[j*w+i];
-        if(mmh<=0) continue;
-        const x=minX+i*cellPx;
-        const y=minY+j*cellPx;
-        const p=worldToScreen({x,y});
-        const ratio=mmh/(target+1e-6);
-        let r=0,g=0,b=0,a=0.22;
-        if(ratio<0.8){ r=60; g=160; b=255; a=0.18+0.18*ratio; }
-        else if(ratio<=1.2){ r=80; g=255; b=140; a=0.18+0.10*Math.min(1,ratio); }
-        else { r=255; g=120; b=120; a=0.18+0.08*Math.min(2,ratio); }
-        ctx.save();
-        ctx.fillStyle=`rgba(${r},${g},${b},${a})`;
-        ctx.fillRect(p.x,p.y,cellPx*view.s+0.5,cellPx*view.s+0.5);
-        ctx.restore();
-      }
-    }
-  }
-
-  // Init UI toggles
-  el('btnToggleHeat').textContent="Heatmap: AN";
-  el('btnToggleGrid').textContent="Raster: AUS";
-
-  // Default start
+  // --- Reorder + initial ---
   function init(){
+    el('btnToggleHeat').textContent="Heatmap: AN";
+    el('btnToggleGrid').textContent="Raster: AUS";
     setTool('pan');
     fitCanvas();
-    renderWaterZonesList();
-    updateSprWaterZoneOptions();
+    fillPresetSelect();
+    renderZones();
+    updateSprZoneOptions();
     renderSteps();
     buildBOM();
     recalcHeat();
     render();
   }
+
+  // --- Default: show preset list even before selection ---
+  updateSprZoneOptions();
+
+  // --- Wire add zones initial render ---
+  renderZones();
+
+  // --- Start ---
   init();
+
+  // Default setTool by clicking steps; still allow manual set via keyboard quick:
+  window.addEventListener('keydown', (e)=>{
+    if(e.target && (e.target.tagName==="INPUT" || e.target.tagName==="TEXTAREA")) return;
+    if(e.key==="1") el('fileBg')?.click();
+    if(e.key==="2") setTool('scale');
+    if(e.key==="3") setTool('source');
+    if(e.key==="4") setTool('area');
+    if(e.key==="5") setTool('sprinkler');
+    if(e.key==="6") setTool('pipe');
+  });
+
 })();
 </script>
 </body>
