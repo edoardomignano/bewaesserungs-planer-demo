@@ -1,0 +1,1157 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>PVC WELT Bewässerungsplaner Demo v0.1</title>
+  <style>
+    :root { --bg:#0b0f14; --panel:#121926; --muted:#9aa4b2; --text:#e6edf3; --accent:#4cc9f0; --warn:#fbbf24; }
+    * { box-sizing:border-box; }
+    body { margin:0; font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial; background:var(--bg); color:var(--text); }
+    header { padding:12px 16px; border-bottom:1px solid rgba(255,255,255,.08); display:flex; align-items:center; justify-content:space-between; gap:12px; }
+    header .left { display:flex; flex-direction:column; gap:2px; }
+    header .title { font-weight:700; letter-spacing:.2px; }
+    header .sub { color:var(--muted); font-size:12px; }
+    .wrap { display:grid; grid-template-columns: 360px 1fr 320px; gap:12px; padding:12px; height: calc(100vh - 54px); }
+    .panel { background:var(--panel); border:1px solid rgba(255,255,255,.08); border-radius:14px; padding:12px; overflow:auto; }
+    .panel h3 { margin:0 0 10px; font-size:14px; color:#dbe7ff; }
+    .row { display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin:8px 0; }
+    .row label { font-size:12px; color:var(--muted); }
+    input, select, button, textarea { background:#0f1520; color:var(--text); border:1px solid rgba(255,255,255,.12); border-radius:10px; padding:8px 10px; font-size:13px; }
+    input[type="number"] { width:110px; }
+    input[type="text"] { width:100%; }
+    button { cursor:pointer; }
+    button.primary { background: linear-gradient(135deg, rgba(76,201,240,.25), rgba(76,201,240,.08)); border-color: rgba(76,201,240,.35); }
+    button.warn { background: linear-gradient(135deg, rgba(251,191,36,.25), rgba(251,191,36,.08)); border-color: rgba(251,191,36,.35); }
+    button:disabled { opacity:.45; cursor:not-allowed; }
+    .toolgrid { display:grid; grid-template-columns: 1fr 1fr; gap:8px; }
+    .hint { font-size:12px; color:var(--muted); line-height:1.35; }
+    .kpi { display:grid; grid-template-columns: 1fr 1fr; gap:8px; margin-top:10px; }
+    .card { border:1px solid rgba(255,255,255,.08); border-radius:12px; padding:10px; background: rgba(0,0,0,.18); }
+    .card .k { color:var(--muted); font-size:12px; }
+    .card .v { font-size:18px; font-weight:800; margin-top:4px; }
+    canvas { width:100%; height:100%; background:#070a10; border-radius:14px; border:1px solid rgba(255,255,255,.08); }
+    .list { margin:8px 0 0; padding:0; list-style:none; }
+    .list li { padding:8px; border:1px solid rgba(255,255,255,.08); border-radius:12px; margin:8px 0; display:flex; justify-content:space-between; gap:10px; }
+    .pill { font-size:11px; color:var(--muted); }
+    .small { font-size:12px; color:var(--muted); }
+    .sep { height:1px; background:rgba(255,255,255,.08); margin:12px 0; }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
+  </style>
+</head>
+<body>
+<header>
+  <div class="left">
+    <div class="title">PVC WELT Bewässerungsplaner Demo <span class="mono">v0.1</span></div>
+    <div class="sub">Bild laden → Maßstab → Fläche → Regner setzen → Heatmap/Uniformity → JSON export</div>
+  </div>
+  <div class="row">
+    <button class="primary" id="btnExport">Projekt export (JSON)</button>
+    <button id="btnImport">Projekt import</button>
+    <input id="fileImport" type="file" accept="application/json" hidden />
+  </div>
+</header>
+
+<div class="wrap">
+  <!-- LEFT: Tools -->
+  <div class="panel">
+    <h3>Projekt & Tools</h3>
+
+    <div class="row">
+      <label>Plan-Bild</label>
+      <input id="fileBg" type="file" accept="image/*" />
+    </div>
+
+    <div class="sep"></div>
+
+    <div class="toolgrid">
+      <button id="toolPan" class="primary">🖐️ Pan/Zoom</button>
+      <button id="toolSelect">🧲 Auswahl</button>
+      <button id="toolScale" class="warn">📏 Maßstab</button>
+      <button id="toolArea">🟩 Fläche</button>
+      <button id="toolElev">⛰️ Höhenzone</button>
+      <button id="toolSprinkler" class="primary">💦 Regner</button>
+    </div>
+
+    <div class="row">
+      <label>Ansicht</label>
+      <button id="btnResetView">Reset View</button>
+      <button id="btnToggleHeat" class="primary">Heatmap: AN</button>
+      <button id="btnToggleGrid">Raster: AUS</button>
+    </div>
+
+    <div class="sep"></div>
+
+    <h3>Wasser / Ziel</h3>
+    <div class="row">
+      <label>Ziel-Niederschlag (mm/h)</label>
+      <input id="targetMmH" type="number" min="1" step="0.5" value="10" />
+    </div>
+    <div class="row">
+      <label>Heatmap-Auflösung (px)</label>
+      <input id="heatRes" type="number" min="6" step="2" value="12" />
+      <button id="btnRecalc" class="primary">Neu berechnen</button>
+    </div>
+
+    <p class="hint">
+      Hinweis: In dieser Demo ist die Hydraulik **bewusst vereinfacht**. Die Höhenzonen beeinflussen aktuell
+      den effektiven Radius (spray „bergauf“ etwas kürzer). Für eine echte Dimensionierung (Kreise, Druckverluste,
+      Durchfluss) würdest du später mit Rohrdaten, Ventilen & verfügbaren m³/h arbeiten – wie es Planer typischerweise tun. :contentReference[oaicite:2]{index=2}
+    </p>
+
+    <div class="kpi">
+      <div class="card">
+        <div class="k">Fläche im Zielbereich (±20%)</div>
+        <div class="v" id="kpiWithin">–</div>
+      </div>
+      <div class="card">
+        <div class="k">Uniformity (CV, kleiner = besser)</div>
+        <div class="v" id="kpiCv">–</div>
+      </div>
+      <div class="card">
+        <div class="k">Unterversorgung</div>
+        <div class="v" id="kpiUnder">–</div>
+      </div>
+      <div class="card">
+        <div class="k">Überversorgung</div>
+        <div class="v" id="kpiOver">–</div>
+      </div>
+    </div>
+
+    <div class="sep"></div>
+
+    <h3>Materialliste (Demo)</h3>
+    <ul class="list" id="bom"></ul>
+    <div class="small">Tipp: Du kannst später Shop-Artikel (PVC-Welt) via CSV/JSON mappen und hier automatisch ausgeben. :contentReference[oaicite:3]{index=3}</div>
+  </div>
+
+  <!-- CENTER: Canvas -->
+  <div class="panel" style="padding:10px;">
+    <canvas id="c"></canvas>
+  </div>
+
+  <!-- RIGHT: Properties -->
+  <div class="panel">
+    <h3>Eigenschaften</h3>
+    <div class="hint" id="modeHint">Wähle ein Tool. (Maßstab: 2 Punkte klicken → Meter eingeben)</div>
+
+    <div class="sep"></div>
+
+    <div id="propsNone" class="hint">Noch nichts ausgewählt.</div>
+
+    <div id="propsScale" style="display:none;">
+      <h3>Maßstab</h3>
+      <div class="row">
+        <label>Distanz (Meter) zwischen Punkt A und B</label>
+        <input id="scaleMeters" type="number" min="0.1" step="0.1" value="5" />
+        <button id="btnApplyScale" class="primary">Anwenden</button>
+      </div>
+      <p class="hint">Nach dem Anwenden sind alle Radien in **Metern**.</p>
+    </div>
+
+    <div id="propsSprinkler" style="display:none;">
+      <h3>Regner</h3>
+      <div class="row">
+        <label>Preset</label>
+        <select id="sprPreset">
+          <option value="MP1000">Hunter MP Rotator MP1000 (2.5–4.5m)</option>
+          <option value="MP2000">Hunter MP Rotator MP2000 (4.0–6.4m)</option>
+          <option value="MP3000">Hunter MP Rotator MP3000 (6.7–9.1m)</option>
+          <option value="MP3500">Hunter MP Rotator MP3500 (9.4–10.7m)</option>
+          <option value="CUSTOM">Custom</option>
+        </select>
+      </div>
+
+      <div class="row">
+        <label>Name</label>
+        <input id="sprName" type="text" value="MP Rotator" />
+      </div>
+
+      <div class="row">
+        <label>Radius (m)</label>
+        <input id="sprRadius" type="number" min="0.2" step="0.1" value="5.0" />
+      </div>
+
+      <div class="row">
+        <label>Arc (°)</label>
+        <input id="sprArc" type="number" min="30" max="360" step="1" value="360" />
+      </div>
+
+      <div class="row">
+        <label>Richtung (°)</label>
+        <input id="sprDir" type="number" min="0" max="359" step="1" value="0" />
+      </div>
+
+      <div class="row">
+        <label>Precip (mm/h)</label>
+        <input id="sprMmH" type="number" min="0.5" step="0.5" value="10" />
+      </div>
+
+      <div class="row">
+        <label>Radius-Hangfaktor (% pro m Höhenunterschied)</label>
+        <input id="slopeFactor" type="number" min="0" step="0.5" value="3" />
+      </div>
+
+      <div class="row">
+        <button id="btnDelete" class="warn">Löschen</button>
+        <button id="btnCopy" class="primary">Duplizieren</button>
+      </div>
+
+      <p class="hint">
+        MP Rotator: Arc/Radius anpassbar, Radius oft bis ~25% reduzierbar (je nach Modell/Setup). :contentReference[oaicite:4]{index=4}
+      </p>
+    </div>
+
+    <div id="propsElev" style="display:none;">
+      <h3>Höhenzone</h3>
+      <div class="row">
+        <label>Name</label>
+        <input id="elevName" type="text" value="Zone höher" />
+      </div>
+      <div class="row">
+        <label>Höhe relativ (m)</label>
+        <input id="elevMeters" type="number" step="0.1" value="0.5" />
+      </div>
+      <div class="row">
+        <button id="btnDeleteZone" class="warn">Zone löschen</button>
+      </div>
+      <p class="hint">Diese Demo nutzt die Zonen nur für eine vereinfachte Radius-Korrektur.</p>
+    </div>
+
+    <div class="sep"></div>
+
+    <h3>Shortcuts</h3>
+    <div class="hint">
+      <div><span class="mono">Mausrad</span> Zoom</div>
+      <div><span class="mono">Space</span> gedrückt = Pan (auch wenn anderes Tool aktiv)</div>
+      <div><span class="mono">Esc</span> aktuelle Zeichnung abbrechen</div>
+      <div><span class="mono">Enter</span> Polygon abschließen (Fläche/Höhenzone)</div>
+    </div>
+  </div>
+</div>
+
+<script>
+(() => {
+  const APP_VERSION = "PVC WELT Bewässerungsplaner Demo v0.1";
+
+  // ===== Canvas / View =====
+  const canvas = document.getElementById('c');
+  const ctx = canvas.getContext('2d');
+
+  function fitCanvas() {
+    const rect = canvas.getBoundingClientRect();
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = Math.max(900, Math.floor(rect.width * dpr));
+    canvas.height = Math.max(600, Math.floor(rect.height * dpr));
+    ctx.setTransform(dpr,0,0,dpr,0,0);
+    render();
+  }
+  window.addEventListener('resize', fitCanvas);
+
+  // View transform (world -> screen)
+  let view = { x: 0, y: 0, s: 1 }; // translate + scale
+  function worldToScreen(p) { return { x: (p.x + view.x) * view.s, y: (p.y + view.y) * view.s }; }
+  function screenToWorld(p) { return { x: p.x / view.s - view.x, y: p.y / view.s - view.y }; }
+
+  // ===== State =====
+  const state = {
+    version: APP_VERSION,
+    bg: { img: null, w: 0, h: 0, url: null },
+    scale: { pxPerMeter: null, a: null, b: null },
+    areas: [],      // {id,name,pts:[{x,y}]}
+    elevZones: [],  // {id,name,meters,pts:[{x,y}]}
+    sprinklers: [], // {id,name,type,x,y,radiusM,arcDeg,dirDeg,mmh,slopeFactorPct}
+    selection: null, // {kind:'sprinkler'|'elev', id}
+    showHeat: true,
+    showGrid: false,
+    heat: { ready:false, cellPx: 12, data:null, bbox:null },
+    targetMmh: 10,
+  };
+
+  const uid = () => Math.random().toString(16).slice(2) + Date.now().toString(16);
+
+  // ===== Presets (from Hunter metric pages) =====
+  const PRESETS = {
+    MP1000: { name:"MP1000", radiusM: 4.0, mmh: 10, min:2.5, max:4.5 },
+    MP2000: { name:"MP2000", radiusM: 6.4, mmh: 10, min:4.0, max:6.4 },
+    MP3000: { name:"MP3000", radiusM: 9.1, mmh: 10, min:6.7, max:9.1 },
+    MP3500: { name:"MP3500", radiusM: 10.7, mmh: 10, min:9.4, max:10.7 },
+  };
+
+  // ===== UI refs =====
+  const el = (id) => document.getElementById(id);
+
+  const toolButtons = {
+    pan: el('toolPan'),
+    select: el('toolSelect'),
+    scale: el('toolScale'),
+    area: el('toolArea'),
+    elev: el('toolElev'),
+    sprinkler: el('toolSprinkler')
+  };
+
+  let tool = 'pan';
+  let drawing = { kind:null, pts:[], temp:null }; // for polygons or scale points
+
+  function setTool(t) {
+    tool = t;
+    Object.entries(toolButtons).forEach(([k,btn]) => btn.classList.toggle('primary', k===t && (k==='pan' || k==='sprinkler')));
+    Object.entries(toolButtons).forEach(([k,btn]) => btn.classList.toggle('warn', k===t && k==='scale'));
+    updateModeHint();
+  }
+
+  function updateModeHint() {
+    const hints = {
+      pan: "Pan/Zoom: ziehen (oder Space gedrückt halten), Mausrad zoom.",
+      select: "Auswahl: Objekt anklicken, dann rechts bearbeiten.",
+      scale: "Maßstab: Punkt A klicken, Punkt B klicken, Meter eingeben → Anwenden.",
+      area: "Fläche: Punkte klicken (Polygon). Enter = abschließen, Esc = abbrechen.",
+      elev: "Höhenzone: Punkte klicken (Polygon). Enter = abschließen, dann Höhe rechts einstellen.",
+      sprinkler: "Regner: in den Plan klicken, um einen Regner zu setzen."
+    };
+    el('modeHint').textContent = hints[tool] || "";
+    showProps();
+  }
+
+  // Panels switching
+  function showProps() {
+    el('propsScale').style.display = (tool==='scale' && state.scale.a && state.scale.b) ? 'block' : 'none';
+    const sel = state.selection;
+    el('propsSprinkler').style.display = (sel && sel.kind==='sprinkler') ? 'block' : 'none';
+    el('propsElev').style.display = (sel && sel.kind==='elev') ? 'block' : 'none';
+    el('propsNone').style.display = (!sel && !(tool==='scale' && state.scale.a && state.scale.b)) ? 'block' : 'none';
+
+    if (sel?.kind==='sprinkler') syncSprinklerForm();
+    if (sel?.kind==='elev') syncElevForm();
+  }
+
+  // ===== Background image =====
+  el('fileBg').addEventListener('change', async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      state.bg.img = img;
+      state.bg.w = img.width;
+      state.bg.h = img.height;
+      state.bg.url = url;
+      // Center view
+      view.s = 1;
+      view.x = 20;
+      view.y = 20;
+      render();
+    };
+    img.src = url;
+  });
+
+  // ===== Toggles =====
+  el('btnToggleHeat').addEventListener('click', () => {
+    state.showHeat = !state.showHeat;
+    el('btnToggleHeat').textContent = "Heatmap: " + (state.showHeat ? "AN" : "AUS");
+    render();
+  });
+
+  el('btnToggleGrid').addEventListener('click', () => {
+    state.showGrid = !state.showGrid;
+    el('btnToggleGrid').textContent = "Raster: " + (state.showGrid ? "AN" : "AUS");
+    render();
+  });
+
+  el('btnResetView').addEventListener('click', () => {
+    view = { x: 20, y: 20, s: 1 };
+    render();
+  });
+
+  el('btnRecalc').addEventListener('click', () => {
+    state.targetMmh = parseFloat(el('targetMmH').value || "10");
+    state.heat.cellPx = parseInt(el('heatRes').value || "12", 10);
+    recalcHeat();
+    render();
+  });
+
+  el('targetMmH').addEventListener('change', () => {
+    state.targetMmh = parseFloat(el('targetMmH').value || "10");
+    recalcHeat();
+    render();
+  });
+
+  el('heatRes').addEventListener('change', () => {
+    state.heat.cellPx = parseInt(el('heatRes').value || "12", 10);
+    recalcHeat();
+    render();
+  });
+
+  // ===== Export/Import =====
+  el('btnExport').addEventListener('click', () => {
+    const payload = serialize();
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `bewaesserungsplan_${new Date().toISOString().slice(0,10)}.json`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+  });
+
+  el('btnImport').addEventListener('click', () => el('fileImport').click());
+
+  el('fileImport').addEventListener('change', async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const text = await file.text();
+    const data = JSON.parse(text);
+    await deserialize(data);
+    recalcHeat();
+    render();
+    e.target.value = "";
+  });
+
+  function serialize() {
+    // Note: background image is not embedded; only meta. User reloads image.
+    return {
+      version: state.version,
+      bg: { w: state.bg.w, h: state.bg.h },
+      scale: state.scale,
+      areas: state.areas,
+      elevZones: state.elevZones,
+      sprinklers: state.sprinklers,
+      targetMmh: state.targetMmh,
+      heat: { cellPx: state.heat.cellPx }
+    };
+  }
+
+  async function deserialize(data) {
+    state.scale = data.scale || { pxPerMeter:null, a:null, b:null };
+    state.areas = data.areas || [];
+    state.elevZones = data.elevZones || [];
+    state.sprinklers = data.sprinklers || [];
+    state.targetMmh = data.targetMmh || 10;
+    state.heat.cellPx = data.heat?.cellPx || 12;
+    el('targetMmH').value = state.targetMmh;
+    el('heatRes').value = state.heat.cellPx;
+    state.selection = null;
+    drawing = { kind:null, pts:[], temp:null };
+    showProps();
+    buildBOM();
+  }
+
+  // ===== Tools buttons =====
+  toolButtons.pan.addEventListener('click', () => setTool('pan'));
+  toolButtons.select.addEventListener('click', () => setTool('select'));
+  toolButtons.scale.addEventListener('click', () => setTool('scale'));
+  toolButtons.area.addEventListener('click', () => setTool('area'));
+  toolButtons.elev.addEventListener('click', () => setTool('elev'));
+  toolButtons.sprinkler.addEventListener('click', () => setTool('sprinkler'));
+
+  // ===== Scale apply =====
+  el('btnApplyScale').addEventListener('click', () => {
+    if (!state.scale.a || !state.scale.b) return;
+    const m = parseFloat(el('scaleMeters').value || "1");
+    const dpx = dist(state.scale.a, state.scale.b);
+    if (m > 0 && dpx > 0) {
+      state.scale.pxPerMeter = dpx / m;
+      recalcHeat();
+      render();
+    }
+  });
+
+  // ===== Sprinkler properties =====
+  function getSelectedSprinkler() {
+    if (state.selection?.kind !== 'sprinkler') return null;
+    return state.sprinklers.find(s => s.id === state.selection.id) || null;
+  }
+  function getSelectedElev() {
+    if (state.selection?.kind !== 'elev') return null;
+    return state.elevZones.find(z => z.id === state.selection.id) || null;
+  }
+
+  function syncSprinklerForm() {
+    const s = getSelectedSprinkler();
+    if (!s) return;
+    el('sprName').value = s.name;
+    el('sprRadius').value = s.radiusM;
+    el('sprArc').value = s.arcDeg;
+    el('sprDir').value = s.dirDeg;
+    el('sprMmH').value = s.mmh;
+    el('slopeFactor').value = s.slopeFactorPct ?? 3;
+    // preset reflect if matching
+    const matchKey = Object.keys(PRESETS).find(k => s.type === k);
+    el('sprPreset').value = matchKey || "CUSTOM";
+  }
+
+  function syncElevForm() {
+    const z = getSelectedElev();
+    if (!z) return;
+    el('elevName').value = z.name;
+    el('elevMeters').value = z.meters;
+  }
+
+  el('sprPreset').addEventListener('change', () => {
+    const s = getSelectedSprinkler();
+    if (!s) return;
+    const key = el('sprPreset').value;
+    if (key === "CUSTOM") {
+      s.type = "CUSTOM";
+      s.name = el('sprName').value || "Custom";
+      render();
+      return;
+    }
+    const p = PRESETS[key];
+    s.type = key;
+    s.name = `MP Rotator ${p.name}`;
+    s.radiusM = p.radiusM;
+    s.mmh = p.mmh;
+    // arc/dir keep
+    syncSprinklerForm();
+    recalcHeat();
+    buildBOM();
+    render();
+  });
+
+  ['sprName','sprRadius','sprArc','sprDir','sprMmH','slopeFactor'].forEach(id => {
+    el(id).addEventListener('input', () => {
+      const s = getSelectedSprinkler();
+      if (!s) return;
+      s.name = el('sprName').value || s.name;
+      s.radiusM = clamp(parseFloat(el('sprRadius').value||"1"), 0.2, 200);
+      s.arcDeg = clamp(parseFloat(el('sprArc').value||"360"), 30, 360);
+      s.dirDeg = ((parseFloat(el('sprDir').value||"0")%360)+360)%360;
+      s.mmh = clamp(parseFloat(el('sprMmH').value||"10"), 0.1, 200);
+      s.slopeFactorPct = clamp(parseFloat(el('slopeFactor').value||"3"), 0, 25);
+      recalcHeat();
+      buildBOM();
+      render();
+    });
+  });
+
+  el('btnDelete').addEventListener('click', () => {
+    const s = getSelectedSprinkler();
+    if (!s) return;
+    state.sprinklers = state.sprinklers.filter(x => x.id !== s.id);
+    state.selection = null;
+    recalcHeat();
+    buildBOM();
+    showProps();
+    render();
+  });
+
+  el('btnCopy').addEventListener('click', () => {
+    const s = getSelectedSprinkler();
+    if (!s) return;
+    const copy = { ...s, id: uid(), x: s.x + 20, y: s.y + 20 };
+    state.sprinklers.push(copy);
+    state.selection = { kind:'sprinkler', id: copy.id };
+    recalcHeat();
+    buildBOM();
+    showProps();
+    render();
+  });
+
+  // Elev properties
+  el('elevName').addEventListener('input', () => {
+    const z = getSelectedElev();
+    if (!z) return;
+    z.name = el('elevName').value || z.name;
+    recalcHeat();
+    render();
+  });
+  el('elevMeters').addEventListener('input', () => {
+    const z = getSelectedElev();
+    if (!z) return;
+    z.meters = parseFloat(el('elevMeters').value || "0");
+    recalcHeat();
+    render();
+  });
+  el('btnDeleteZone').addEventListener('click', () => {
+    const z = getSelectedElev();
+    if (!z) return;
+    state.elevZones = state.elevZones.filter(x => x.id !== z.id);
+    state.selection = null;
+    recalcHeat();
+    showProps();
+    render();
+  });
+
+  // ===== Geometry helpers =====
+  function dist(a,b){ const dx=a.x-b.x, dy=a.y-b.y; return Math.hypot(dx,dy); }
+  function clamp(v,a,b){ return Math.max(a, Math.min(b,v)); }
+
+  function pointInPoly(pt, poly) {
+    // ray casting
+    let inside = false;
+    for (let i=0, j=poly.length-1; i<poly.length; j=i++) {
+      const xi=poly[i].x, yi=poly[i].y;
+      const xj=poly[j].x, yj=poly[j].y;
+      const intersect = ((yi>pt.y)!=(yj>pt.y)) && (pt.x < (xj-xi)*(pt.y-yi)/(yj-yi+1e-9)+xi);
+      if (intersect) inside = !inside;
+    }
+    return inside;
+  }
+
+  function getElevationAt(pt) {
+    // first matching zone wins (topmost)
+    for (let i=state.elevZones.length-1; i>=0; i--) {
+      const z = state.elevZones[i];
+      if (z.pts?.length >= 3 && pointInPoly(pt, z.pts)) return z.meters || 0;
+    }
+    return 0;
+  }
+
+  function getAreaMask(pt) {
+    if (state.areas.length === 0) return true; // if no area defined, evaluate everywhere
+    for (const a of state.areas) {
+      if (a.pts?.length >= 3 && pointInPoly(pt, a.pts)) return true;
+    }
+    return false;
+  }
+
+  // ===== Interaction =====
+  let mouse = { x:0, y:0, down:false, last:null };
+  let spacePan = false;
+
+  window.addEventListener('keydown', (e) => {
+    if (e.code === 'Space') { spacePan = true; }
+    if (e.code === 'Escape') { drawing = { kind:null, pts:[], temp:null }; state.scale.a=null; state.scale.b=null; showProps(); render(); }
+    if (e.code === 'Enter') { finalizePolygon(); }
+  });
+  window.addEventListener('keyup', (e) => { if (e.code === 'Space') spacePan = false; });
+
+  canvas.addEventListener('mousedown', (e) => {
+    mouse.down = true;
+    mouse.last = { x: e.offsetX, y: e.offsetY };
+
+    const w = screenToWorld({ x:e.offsetX, y:e.offsetY });
+
+    // Force pan if space held
+    if (spacePan) return;
+
+    if (tool === 'pan') return;
+
+    if (tool === 'scale') {
+      if (!state.scale.a) state.scale.a = w;
+      else if (!state.scale.b) state.scale.b = w;
+      else { state.scale.a = w; state.scale.b = null; state.scale.pxPerMeter = null; }
+      showProps();
+      render();
+      return;
+    }
+
+    if (tool === 'sprinkler') {
+      if (!state.scale.pxPerMeter) {
+        alert("Bitte zuerst Maßstab setzen (📏), damit Radien in Metern stimmen.");
+        return;
+      }
+      const s = {
+        id: uid(),
+        type: "MP2000",
+        name: "MP Rotator MP2000",
+        x: w.x, y: w.y,
+        radiusM: PRESETS.MP2000.radiusM,
+        arcDeg: 360,
+        dirDeg: 0,
+        mmh: 10,
+        slopeFactorPct: 3
+      };
+      state.sprinklers.push(s);
+      state.selection = { kind:'sprinkler', id:s.id };
+      buildBOM();
+      recalcHeat();
+      showProps();
+      render();
+      return;
+    }
+
+    if (tool === 'area') {
+      drawing.kind = 'area';
+      drawing.pts.push(w);
+      render();
+      return;
+    }
+
+    if (tool === 'elev') {
+      drawing.kind = 'elev';
+      drawing.pts.push(w);
+      render();
+      return;
+    }
+
+    if (tool === 'select') {
+      const hit = hitTest(w);
+      state.selection = hit;
+      showProps();
+      render();
+      return;
+    }
+  });
+
+  canvas.addEventListener('mousemove', (e) => {
+    mouse.x = e.offsetX; mouse.y = e.offsetY;
+    const w = screenToWorld({ x:e.offsetX, y:e.offsetY });
+    drawing.temp = w;
+
+    if (!mouse.down) { render(); return; }
+
+    // Pan
+    if (tool === 'pan' || spacePan) {
+      const dx = (e.offsetX - mouse.last.x) / view.s;
+      const dy = (e.offsetY - mouse.last.y) / view.s;
+      view.x += dx;
+      view.y += dy;
+      mouse.last = { x:e.offsetX, y:e.offsetY };
+      render();
+      return;
+    }
+
+    // Drag selected sprinkler with select tool
+    if (tool === 'select' && state.selection?.kind === 'sprinkler') {
+      const s = getSelectedSprinkler();
+      if (s) {
+        s.x = w.x; s.y = w.y;
+        recalcHeat();
+        render();
+      }
+    }
+  });
+
+  canvas.addEventListener('mouseup', () => { mouse.down=false; mouse.last=null; });
+
+  canvas.addEventListener('wheel', (e) => {
+    e.preventDefault();
+    const zoom = Math.exp(-e.deltaY * 0.0012);
+    const mx = e.offsetX, my = e.offsetY;
+    const before = screenToWorld({ x:mx, y:my });
+    view.s = clamp(view.s * zoom, 0.2, 6);
+    const after = screenToWorld({ x:mx, y:my });
+    // keep cursor point stable
+    view.x += (after.x - before.x);
+    view.y += (after.y - before.y);
+    render();
+  }, { passive:false });
+
+  function hitTest(w) {
+    // sprinklers
+    for (let i=state.sprinklers.length-1; i>=0; i--) {
+      const s = state.sprinklers[i];
+      if (Math.hypot(w.x - s.x, w.y - s.y) < 10 / view.s) return { kind:'sprinkler', id:s.id };
+    }
+    // elevation zones (click inside)
+    for (let i=state.elevZones.length-1; i>=0; i--) {
+      const z = state.elevZones[i];
+      if (z.pts?.length >= 3 && pointInPoly(w, z.pts)) return { kind:'elev', id:z.id };
+    }
+    return null;
+  }
+
+  function finalizePolygon() {
+    if (!drawing.kind) return;
+    if (drawing.pts.length < 3) { drawing = {kind:null, pts:[], temp:null}; render(); return; }
+    if (drawing.kind === 'area') {
+      state.areas.push({ id: uid(), name: `Fläche ${state.areas.length+1}`, pts: [...drawing.pts] });
+    } else if (drawing.kind === 'elev') {
+      const z = { id: uid(), name: `Höhenzone ${state.elevZones.length+1}`, meters: 0.5, pts: [...drawing.pts] };
+      state.elevZones.push(z);
+      state.selection = { kind:'elev', id: z.id };
+      showProps();
+    }
+    drawing = {kind:null, pts:[], temp:null};
+    recalcHeat();
+    render();
+  }
+
+  // ===== Heatmap / Coverage =====
+  function recalcHeat() {
+    state.heat.ready = false;
+    state.heat.data = null;
+    if (!state.scale.pxPerMeter || state.sprinklers.length === 0) { updateKPIs(null); return; }
+
+    // bbox of evaluation: background if loaded, else sprinklers extents
+    let minX=Infinity, minY=Infinity, maxX=-Infinity, maxY=-Infinity;
+
+    function expand(p) {
+      minX = Math.min(minX, p.x); minY = Math.min(minY, p.y);
+      maxX = Math.max(maxX, p.x); maxY = Math.max(maxY, p.y);
+    }
+
+    if (state.bg.img) {
+      expand({x:0,y:0}); expand({x:state.bg.w,y:state.bg.h});
+    } else {
+      for (const s of state.sprinklers) {
+        const rpx = s.radiusM * state.scale.pxPerMeter;
+        expand({x:s.x-rpx,y:s.y-rpx}); expand({x:s.x+rpx,y:s.y+rpx});
+      }
+    }
+
+    // If areas exist, bbox them
+    if (state.areas.length) {
+      minX=Infinity; minY=Infinity; maxX=-Infinity; maxY=-Infinity;
+      for (const a of state.areas) for (const p of a.pts) expand(p);
+    }
+
+    if (!isFinite(minX)) { updateKPIs(null); return; }
+
+    const cellPx = state.heat.cellPx;
+    const w = Math.ceil((maxX - minX) / cellPx);
+    const h = Math.ceil((maxY - minY) / cellPx);
+    const data = new Float32Array(w*h);
+
+    // sample at cell centers
+    const values = [];
+    const target = state.targetMmh || 10;
+
+    for (let j=0; j<h; j++) {
+      for (let i=0; i<w; i++) {
+        const cx = minX + (i + 0.5) * cellPx;
+        const cy = minY + (j + 0.5) * cellPx;
+        const pt = {x:cx,y:cy};
+
+        if (!getAreaMask(pt)) continue;
+
+        let mmh = 0;
+        for (const s of state.sprinklers) {
+          // arc test
+          const dx = pt.x - s.x, dy = pt.y - s.y;
+          const d = Math.hypot(dx,dy);
+          // effective radius in px
+          const elevS = getElevationAt({x:s.x,y:s.y});
+          const elevP = getElevationAt(pt);
+          const delta = (elevP - elevS); // + means point is "higher" than sprinkler
+          const slopePct = (s.slopeFactorPct ?? 3) / 100; // per meter
+          // shorten radius when spraying uphill (delta>0), lengthen slightly downhill
+          const radiusM_eff = clamp(s.radiusM * (1 - slopePct * delta), 0.2, 200);
+          const rpx = radiusM_eff * state.scale.pxPerMeter;
+
+          if (d > rpx) continue;
+
+          // angular sector
+          const ang = (Math.atan2(dy, dx) * 180/Math.PI + 360) % 360;
+          const start = (s.dirDeg - s.arcDeg/2 + 360) % 360;
+          const end = (s.dirDeg + s.arcDeg/2 + 360) % 360;
+          const inArc = s.arcDeg >= 359 ? true : (start < end ? (ang >= start && ang <= end) : (ang >= start || ang <= end));
+          if (!inArc) continue;
+
+          // Simple distribution: uniform inside radius, scaled by arc fraction
+          const arcFactor = (s.arcDeg / 360);
+          mmh += (s.mmh * arcFactor);
+        }
+
+        const idx = j*w + i;
+        data[idx] = mmh;
+        values.push(mmh);
+      }
+    }
+
+    state.heat.data = { data, w, h };
+    state.heat.bbox = { minX, minY, maxX, maxY, cellPx, w, h };
+    state.heat.ready = true;
+
+    updateKPIs(values.length ? values : null);
+    buildBOM();
+  }
+
+  function updateKPIs(values) {
+    const withinEl = el('kpiWithin');
+    const cvEl = el('kpiCv');
+    const underEl = el('kpiUnder');
+    const overEl = el('kpiOver');
+
+    if (!values || values.length === 0) {
+      withinEl.textContent = "–";
+      cvEl.textContent = "–";
+      underEl.textContent = "–";
+      overEl.textContent = "–";
+      return;
+    }
+
+    const target = state.targetMmh || 10;
+    let sum = 0;
+    for (const v of values) sum += v;
+    const mean = sum / values.length;
+
+    let varSum = 0;
+    let within=0, under=0, over=0;
+    const lo = target * 0.8;
+    const hi = target * 1.2;
+
+    for (const v of values) {
+      varSum += (v-mean)*(v-mean);
+      if (v >= lo && v <= hi) within++;
+      else if (v < lo) under++;
+      else over++;
+    }
+    const variance = varSum / values.length;
+    const sd = Math.sqrt(variance);
+    const cv = mean > 0 ? sd / mean : 0;
+
+    withinEl.textContent = Math.round(within/values.length*100) + "%";
+    cvEl.textContent = cv.toFixed(2);
+    underEl.textContent = Math.round(under/values.length*100) + "%";
+    overEl.textContent = Math.round(over/values.length*100) + "%";
+  }
+
+  // ===== BOM =====
+  function buildBOM() {
+    const bom = new Map();
+    for (const s of state.sprinklers) {
+      const key = (s.type || "CUSTOM") + " — " + (s.name || "Regner");
+      bom.set(key, (bom.get(key) || 0) + 1);
+    }
+    const ul = el('bom');
+    ul.innerHTML = "";
+    if (bom.size === 0) {
+      const li = document.createElement('li');
+      li.innerHTML = `<span class="pill">Noch keine Regner gesetzt</span><span class="pill">0</span>`;
+      ul.appendChild(li);
+      return;
+    }
+    [...bom.entries()].sort((a,b)=>b[1]-a[1]).forEach(([k,v]) => {
+      const li = document.createElement('li');
+      li.innerHTML = `<span>${k}<div class="pill">Demo-Zählung</div></span><span style="font-weight:800;">${v}</span>`;
+      ul.appendChild(li);
+    });
+  }
+
+  // ===== Render =====
+  function render() {
+    // clear
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+
+    // background
+    if (state.bg.img) {
+      const p0 = worldToScreen({x:0,y:0});
+      ctx.save();
+      ctx.globalAlpha = 1;
+      ctx.drawImage(state.bg.img, p0.x, p0.y, state.bg.w*view.s, state.bg.h*view.s);
+      ctx.restore();
+    }
+
+    // grid
+    if (state.showGrid) drawGrid();
+
+    // heatmap
+    if (state.showHeat && state.heat.ready) drawHeat();
+
+    // areas
+    for (const a of state.areas) drawPoly(a.pts, 'rgba(76,201,240,.25)', 'rgba(76,201,240,.85)', 2, true, a.name);
+
+    // elevation zones
+    for (const z of state.elevZones) drawPoly(z.pts, 'rgba(251,191,36,.16)', 'rgba(251,191,36,.75)', 2, true, `${z.name} (${z.meters}m)`);
+
+    // drawing in progress
+    if (drawing.kind && drawing.pts.length) {
+      const pts = drawing.temp ? [...drawing.pts, drawing.temp] : drawing.pts;
+      const fill = drawing.kind==='area' ? 'rgba(76,201,240,.12)' : 'rgba(251,191,36,.10)';
+      const stroke = drawing.kind==='area' ? 'rgba(76,201,240,.9)' : 'rgba(251,191,36,.9)';
+      drawPoly(pts, fill, stroke, 2, false, drawing.kind==='area'?'Fläche (zeichnen)':'Höhenzone (zeichnen)');
+    }
+
+    // scale points
+    if (state.scale.a) drawPoint(state.scale.a, 'rgba(251,191,36,.95)');
+    if (state.scale.b) drawPoint(state.scale.b, 'rgba(251,191,36,.95)');
+    if (state.scale.a && state.scale.b) {
+      drawLine(state.scale.a, state.scale.b, 'rgba(251,191,36,.9)', 2);
+      const dpx = dist(state.scale.a, state.scale.b);
+      const txt = state.scale.pxPerMeter ? `${(dpx/state.scale.pxPerMeter).toFixed(2)} m` : `${dpx.toFixed(0)} px`;
+      drawLabel(mid(state.scale.a,state.scale.b), txt, 'rgba(251,191,36,.95)');
+    }
+
+    // sprinklers
+    for (const s of state.sprinklers) drawSprinkler(s);
+
+    // selection highlight
+    if (state.selection?.kind==='sprinkler') {
+      const s = getSelectedSprinkler();
+      if (s) drawRing({x:s.x,y:s.y}, 14/view.s, 'rgba(76,201,240,.95)', 2);
+    }
+    if (state.selection?.kind==='elev') {
+      const z = getSelectedElev();
+      if (z?.pts?.length) drawPoly(z.pts, 'rgba(251,191,36,.08)', 'rgba(251,191,36,1)', 3, false, null);
+    }
+  }
+
+  function mid(a,b){ return {x:(a.x+b.x)/2, y:(a.y+b.y)/2}; }
+
+  function drawGrid() {
+    const step = 50; // world px
+    const w = canvas.getBoundingClientRect().width;
+    const h = canvas.getBoundingClientRect().height;
+
+    const topLeft = screenToWorld({x:0,y:0});
+    const bottomRight = screenToWorld({x:w,y:h});
+
+    const startX = Math.floor(topLeft.x/step)*step;
+    const startY = Math.floor(topLeft.y/step)*step;
+    const endX = Math.ceil(bottomRight.x/step)*step;
+    const endY = Math.ceil(bottomRight.y/step)*step;
+
+    ctx.save();
+    ctx.strokeStyle = 'rgba(255,255,255,.06)';
+    ctx.lineWidth = 1;
+    for (let x=startX; x<=endX; x+=step) {
+      drawLine({x,y:startY},{x,y:endY}, 'rgba(255,255,255,.06)', 1);
+    }
+    for (let y=startY; y<=endY; y+=step) {
+      drawLine({x:startX,y},{x:endX,y}, 'rgba(255,255,255,.06)', 1);
+    }
+    ctx.restore();
+  }
+
+  function drawHeat() {
+    const { data, w, h } = state.heat.data;
+    const { minX, minY, cellPx } = state.heat.bbox;
+    const target = state.targetMmh || 10;
+
+    for (let j=0; j<h; j++) {
+      for (let i=0; i<w; i++) {
+        const mmh = data[j*w+i];
+        if (mmh <= 0) continue;
+
+        const cx = minX + i*cellPx;
+        const cy = minY + j*cellPx;
+        const p = worldToScreen({x:cx,y:cy});
+
+        // color mapping without fixed palette: use alpha bands
+        // Under target -> bluish, Over target -> reddish, near -> greenish (approx via RGB)
+        const ratio = mmh / (target+1e-6);
+        let r=0, g=0, b=0, a=0.22;
+        if (ratio < 0.8) { r=60; g=160; b=255; a=0.18 + 0.18*ratio; }            // under
+        else if (ratio <= 1.2) { r=80; g=255; b=140; a=0.18 + 0.10*Math.min(1,ratio); } // good
+        else { r=255; g=120; b=120; a=0.18 + 0.08*Math.min(2,ratio); }           // over
+
+        ctx.save();
+        ctx.fillStyle = `rgba(${r},${g},${b},${a})`;
+        ctx.fillRect(p.x, p.y, cellPx*view.s + 0.5, cellPx*view.s + 0.5);
+        ctx.restore();
+      }
+    }
+  }
+
+  function drawPoly(pts, fill, stroke, lw, closed, label) {
+    if (!pts || pts.length < 2) return;
+    ctx.save();
+    ctx.beginPath();
+    const p0 = worldToScreen(pts[0]);
+    ctx.moveTo(p0.x, p0.y);
+    for (let i=1; i<pts.length; i++) {
+      const pi = worldToScreen(pts[i]);
+      ctx.lineTo(pi.x, pi.y);
+    }
+    if (closed && pts.length >= 3) ctx.closePath();
+    if (fill) { ctx.fillStyle = fill; ctx.fill(); }
+    ctx.strokeStyle = stroke;
+    ctx.lineWidth = lw;
+    ctx.stroke();
+    ctx.restore();
+
+    if (label && pts.length) {
+      // label at centroid
+      const c = centroid(pts);
+      drawLabel(c, label, stroke);
+    }
+  }
+
+  function centroid(pts) {
+    let x=0,y=0;
+    for (const p of pts) { x+=p.x; y+=p.y; }
+    return { x:x/pts.length, y:y/pts.length };
+  }
+
+  function drawLabel(worldPt, text, color) {
+    const p = worldToScreen(worldPt);
+    ctx.save();
+    ctx.font = `12px ui-sans-serif, system-ui`;
+    ctx.fillStyle = 'rgba(0,0,0,.55)';
+    const pad = 6;
+    const w = ctx.measureText(text).width;
+    ctx.fillRect(p.x - w/2 - pad, p.y - 18, w + pad*2, 18);
+    ctx.fillStyle = color || 'rgba(255,255,255,.9)';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(text, p.x, p.y - 9);
+    ctx.restore();
+  }
+
+  function drawPoint(worldPt, color) {
+    const p = worldToScreen(worldPt);
+    ctx.save();
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, 5, 0, Math.PI*2);
+    ctx.fill();
+    ctx.restore();
+  }
+
+  function drawLine(a,b,color,lw) {
+    const p1 = worldToScreen(a), p2 = worldToScreen(b);
+    ctx.save();
+    ctx.strokeStyle = color;
+    ctx.lineWidth = lw;
+    ctx.beginPath();
+    ctx.moveTo(p1.x,p1.y);
+    ctx.lineTo(p2.x,p2.y);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  function drawRing(worldPt, r, color, lw) {
+    const p = worldToScreen(worldPt);
+    ctx.save();
+    ctx.strokeStyle = color;
+    ctx.lineWidth = lw;
+    ctx.beginPath();
+    ctx.arc(p.x,p.y, r*view.s, 0, Math.PI*2);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  function drawSprinkler(s) {
+    const p = worldToScreen({x:s.x,y:s.y});
+    const rpx = state.scale.pxPerMeter ? s.radiusM * state.scale.pxPerMeter : 80;
+    const rr = rpx * view.s;
+
+    // sector (coverage)
+    const arc = (s.arcDeg||360) * Math.PI/180;
+    const dir = (s.dirDeg||0) * Math.PI/180;
+    const start = dir - arc/2;
+    const end = dir + arc/2;
+
+    ctx.save();
+    // fill sector
+    ctx.beginPath();
+    ctx.moveTo(p.x,p.y);
+    ctx.arc(p.x,p.y, rr, start, end);
+    ctx.closePath();
+    ctx.fillStyle = 'rgba(76,201,240,.08)';
+    ctx.fill();
+
+    // outline
+    ctx.strokeStyle = 'rgba(76,201,240,.55)';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+
+    // center dot
+    ctx.fillStyle = 'rgba(76,201,240,.95)';
+    ctx.beginPath();
+    ctx.arc(p.x,p.y, 4.5, 0, Math.PI*2);
+    ctx.fill();
+
+    // label
+    ctx.font = '12px ui-sans-serif, system-ui';
+    ctx.fillStyle = 'rgba(230,237,243,.9)';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'top';
+    ctx.fillText(`${s.name} • ${s.radiusM.toFixed(1)}m • ${s.arcDeg}°`, p.x + 8, p.y + 6);
+
+    ctx.restore();
+  }
+
+  // ===== Init =====
+  setTool('pan');
+  fitCanvas();
+  buildBOM();
+  recalcHeat();
+  updateModeHint();
+
+})();
+</script>
+</body>
+</html>
