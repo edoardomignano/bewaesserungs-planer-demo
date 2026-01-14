@@ -3,23 +3,31 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>PVC WELT Bewässerungsplaner Demo v0.8</title>
+  <title>PVC WELT Bewässerungsplaner Demo v0.9</title>
   <style>
     :root{
       --bg:#0b0f14; --panel:#121926; --muted:#9aa4b2; --text:#e6edf3;
       --accent:#4cc9f0; --warn:#fbbf24; --ok:#34d399; --vio:#a78bfa;
+      --line:rgba(255,255,255,.08);
     }
     *{box-sizing:border-box;}
     body{margin:0;font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Arial;background:var(--bg);color:var(--text);}
-    header{padding:12px 16px;border-bottom:1px solid rgba(255,255,255,.08);display:flex;align-items:center;justify-content:space-between;gap:12px;}
+    header{padding:12px 16px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;gap:12px;}
     .title{font-weight:950;letter-spacing:.2px;}
     .sub{color:var(--muted);font-size:12px;margin-top:2px;}
-    .wrap{display:grid;grid-template-columns:380px 1fr 340px;gap:12px;padding:12px;height:calc(100vh - 54px);}
-    .panel{background:var(--panel);border:1px solid rgba(255,255,255,.08);border-radius:14px;padding:12px;overflow:auto;}
-    canvas{width:100%;height:100%;background:#070a10;border-radius:14px;border:1px solid rgba(255,255,255,.08);}
+    .wrap{display:grid;grid-template-columns:390px 1fr 350px;gap:12px;padding:12px;height:calc(100vh - 54px);}
+    .panel{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:12px;overflow:auto;min-height:0;}
+    .panelLeft{display:flex;flex-direction:column;gap:12px;}
+    .stickySteps{
+      position:sticky; top:0; z-index:5;
+      background:linear-gradient(180deg, rgba(18,25,38,1) 75%, rgba(18,25,38,.85) 100%);
+      padding-bottom:10px;
+    }
+
+    canvas{width:100%;height:100%;background:#070a10;border-radius:14px;border:1px solid var(--line);}
     h3{margin:0 0 10px;font-size:14px;color:#dbe7ff;}
     .hint{font-size:12px;color:var(--muted);line-height:1.35;}
-    .sep{height:1px;background:rgba(255,255,255,.08);margin:12px 0;}
+    .sep{height:1px;background:var(--line);margin:12px 0;}
     .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:8px 0;}
     label{font-size:12px;color:var(--muted);}
     input,select,button{
@@ -37,15 +45,17 @@
     button:disabled{opacity:.45;cursor:not-allowed;}
     .mono{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;}
 
+    /* Steps (wie v0.4: klar, OFFEN/OK sichtbar, klickbar) */
     .step{
       display:flex;align-items:flex-start;justify-content:space-between;gap:10px;
-      padding:10px;border:1px solid rgba(255,255,255,.08);border-radius:12px;margin:8px 0;
+      padding:10px;border:1px solid var(--line);border-radius:12px;margin:8px 0;
       background:rgba(0,0,0,.18);
       cursor:pointer; user-select:none;
       transition:transform .05s ease, border-color .1s ease;
     }
     .step:hover{border-color:rgba(76,201,240,.25);}
     .step:active{transform:scale(0.995);}
+    .step.active{outline:2px solid rgba(76,201,240,.28);}
     .step .sTitle{font-weight:900;font-size:13px;}
     .step .sText{font-size:12px;color:var(--muted);margin-top:4px;line-height:1.3;}
     .badge{font-size:11px;padding:3px 8px;border-radius:999px;border:1px solid rgba(255,255,255,.12);color:var(--muted);}
@@ -53,15 +63,15 @@
     .badge.ok{border-color:rgba(52,211,153,.35);color:rgba(52,211,153,.95);}
 
     .kpi{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px;}
-    .card{border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:10px;background:rgba(0,0,0,.18);}
+    .card{border:1px solid var(--line);border-radius:12px;padding:10px;background:rgba(0,0,0,.18);}
     .card .k{color:var(--muted);font-size:12px;}
     .card .v{font-size:18px;font-weight:950;margin-top:4px;}
 
     .list{margin:8px 0 0;padding:0;list-style:none;}
-    .list li{padding:8px;border:1px solid rgba(255,255,255,.08);border-radius:12px;margin:8px 0;display:flex;justify-content:space-between;gap:10px;}
+    .list li{padding:8px;border:1px solid var(--line);border-radius:12px;margin:8px 0;display:flex;justify-content:space-between;gap:10px;}
     .small{font-size:12px;color:var(--muted);}
 
-    .zoneItem{border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:10px;background:rgba(0,0,0,.18);margin:10px 0;}
+    .zoneItem{border:1px solid var(--line);border-radius:12px;padding:10px;background:rgba(0,0,0,.18);margin:10px 0;}
     .zoneHead{display:flex;justify-content:space-between;align-items:center;gap:8px;}
 
     /* Bottom export bar */
@@ -82,8 +92,8 @@
 <body>
 <header>
   <div>
-    <div class="title">PVC WELT Bewässerungsplaner Demo <span class="mono">v0.8</span></div>
-    <div class="sub">Schritt 1–6 • Live-Regner-Preview • Nässekarte (Blau) • Auto-Rohre • PDF Materialliste</div>
+    <div class="title">PVC WELT Bewässerungsplaner Demo <span class="mono">v0.9</span></div>
+    <div class="sub">Wie v0.4 aufgebaut (Schritt 1–6 links) + Live-Regner-Preview + Verschieben + Undo + Nässekarte + Auto-Rohre + PDF</div>
   </div>
   <div class="row">
     <button class="primary" id="btnExportJson">Export (JSON)</button>
@@ -94,44 +104,50 @@
 
 <div class="wrap">
   <!-- LEFT -->
-  <div class="panel">
-    <h3>Schritt für Schritt</h3>
-    <div class="hint">Klick auf Schritt = Tool aktiv. Kurz & kinderleicht.</div>
-    <div id="steps"></div>
+  <div class="panel panelLeft">
 
-    <div class="sep"></div>
-
-    <h3>Aktionen</h3>
-    <div class="row">
-      <button id="btnUndoSpr" class="warn">↩ Letzten Regner rückgängig</button>
-      <button id="btnClearSpr" class="warn">Regner löschen</button>
-      <button id="btnFitView" class="primary">Bild: Fit</button>
-    </div>
-    <div class="row">
-      <button id="btnToggleWet" class="primary">Nässekarte: AN</button>
-      <button id="btnToggleGrid">Raster: AUS</button>
-      <button id="btnRecalc" class="primary">Neu berechnen</button>
+    <!-- STEPS (immer sichtbar oben) -->
+    <div class="stickySteps">
+      <h3>Schritt für Schritt</h3>
+      <div class="hint">Klick auf Schritt = Tool aktiv. <b>OFFEN</b> zeigt, was noch fehlt.</div>
+      <div id="steps"></div>
+      <div class="sep"></div>
     </div>
 
-    <div class="sep"></div>
+    <!-- ACTIONS -->
+    <div>
+      <h3>Aktionen</h3>
+      <div class="row">
+        <button id="btnUndoSpr" class="warn">↩ Letzten Regner rückgängig</button>
+        <button id="btnClearSpr" class="warn">Regner löschen</button>
+        <button id="btnFitView" class="primary">Bild: Fit</button>
+      </div>
+      <div class="row">
+        <button id="btnToggleWet" class="primary">Nässekarte: AN</button>
+        <button id="btnToggleGrid">Raster: AUS</button>
+        <button id="btnRecalc" class="primary">Neu berechnen</button>
+      </div>
 
-    <h3>Nässekarte</h3>
-    <div class="hint">
-      <div><b>Hellblau</b> = nass</div>
-      <div><b>Dunkelblau</b> = doppelt/mehrfach bewässert</div>
+      <div class="sep"></div>
+
+      <h3>Nässekarte</h3>
+      <div class="hint">
+        <div><b>Hellblau</b> = nass</div>
+        <div><b>Dunkelblau</b> = doppelt/mehrfach bewässert</div>
+      </div>
+
+      <div class="kpi">
+        <div class="card"><div class="k">Bewässert (ca.)</div><div class="v" id="kpiWet">–</div></div>
+        <div class="card"><div class="k">Überlappung (ca.)</div><div class="v" id="kpiOverlap">–</div></div>
+        <div class="card"><div class="k">Regner</div><div class="v" id="kpiSpr">–</div></div>
+        <div class="card"><div class="k">Rohre</div><div class="v" id="kpiPipe">–</div></div>
+      </div>
+
+      <div class="sep"></div>
+
+      <h3>Materialliste (Demo)</h3>
+      <ul class="list" id="bom"></ul>
     </div>
-
-    <div class="kpi">
-      <div class="card"><div class="k">Bewässert (ca.)</div><div class="v" id="kpiWet">–</div></div>
-      <div class="card"><div class="k">Überlappung (ca.)</div><div class="v" id="kpiOverlap">–</div></div>
-      <div class="card"><div class="k">Regner</div><div class="v" id="kpiSpr">–</div></div>
-      <div class="card"><div class="k">Rohre</div><div class="v" id="kpiPipe">–</div></div>
-    </div>
-
-    <div class="sep"></div>
-
-    <h3>Materialliste (Demo)</h3>
-    <ul class="list" id="bom"></ul>
   </div>
 
   <!-- CENTER -->
@@ -149,8 +165,8 @@
 
     <div class="sep"></div>
 
-    <h3>Eigenschaften (nur wenn ausgewählt)</h3>
-    <div id="propsNone" class="hint">Nichts ausgewählt. Tipp: Regner einfach anklicken und ziehen.</div>
+    <h3>Eigenschaften</h3>
+    <div id="propsNone" class="hint">Nichts ausgewählt. Tipp: Regner anklicken & ziehen.</div>
 
     <div id="propsScale" style="display:none;">
       <div class="row">
@@ -158,7 +174,7 @@
         <input id="scaleMeters" type="number" min="0.1" step="0.1" value="5" />
         <button id="btnApplyScale" class="primary">Anwenden</button>
       </div>
-      <div class="hint">Beispiel: Zwei Punkte setzen (bekannte Länge) und echte Meter eingeben.</div>
+      <div class="hint">Setze 2 Punkte mit bekannter Länge. Dann Meter eingeben.</div>
     </div>
 
     <div id="propsSource" style="display:none;">
@@ -169,22 +185,16 @@
 
     <div id="propsSpr" style="display:none;">
       <div class="row"><label>Name</label><input id="sprName" type="text" /></div>
-      <div class="row">
-        <label>Variante</label>
-        <select id="sprPreset"></select>
-      </div>
+      <div class="row"><label>Variante</label><select id="sprPreset"></select></div>
       <div class="row"><label>Radius (m)</label><input id="sprRadius" type="number" min="0.2" step="0.1" /></div>
       <div class="row"><label>Winkel (°)</label><input id="sprArc" type="number" min="30" max="360" step="1" /></div>
       <div class="row"><label>Richtung (°)</label><input id="sprDir" type="number" min="0" max="359" step="1" /></div>
-      <div class="row">
-        <label>Zone</label>
-        <select id="sprZone"></select>
-      </div>
+      <div class="row"><label>Zone</label><select id="sprZone"></select></div>
       <div class="row">
         <button id="btnDeleteSpr" class="warn">Regner löschen</button>
         <button id="btnCopySpr" class="primary">Duplizieren</button>
       </div>
-      <div class="hint">Regner jederzeit ziehen. Beim Setzen: Maus gedrückt halten = Vorschau.</div>
+      <div class="hint">Setzen: Maus halten = Vorschau, loslassen = setzen. Danach jederzeit ziehen.</div>
     </div>
 
     <div id="propsPipe" style="display:none;">
@@ -202,6 +212,7 @@
     <div id="zonesList"></div>
 
     <div class="sep"></div>
+
     <h3>Shortcuts</h3>
     <div class="hint">
       <div><span class="mono">Mausrad</span> Zoom</div>
@@ -226,8 +237,7 @@
 
 <script>
 (() => {
-  const APP_VERSION = "PVC WELT Bewässerungsplaner Demo v0.8";
-
+  const APP_VERSION = "PVC WELT Bewässerungsplaner Demo v0.9";
   const canvas = document.getElementById('c');
   const ctx = canvas.getContext('2d');
   const el = (id)=>document.getElementById(id);
@@ -239,7 +249,6 @@
   // View
   let view = { x: 20, y: 20, s: 1 };
   let cssW=1000, cssH=700;
-
   function worldToScreen(p){ return { x:(p.x+view.x)*view.s, y:(p.y+view.y)*view.s }; }
   function screenToWorld(p){ return { x:p.x/view.s - view.x, y:p.y/view.s - view.y }; }
 
@@ -305,13 +314,127 @@
   const SNAP_RADIUS_WORLD = () => 18 / view.s;
   const closeThresholdWorld = () => 14 / view.s;
 
+  // Steps definitions (wie v0.4 logisch)
+  const STEPS = [
+    { key:"s1", title:"1) Bild hochladen", text:"Bild auswählen und danach „Fit“ drücken.", tool:null },
+    { key:"s2", title:"2) Maßstab setzen", text:"Zwei Punkte setzen (bekannte Länge). Meter eingeben & „Anwenden“. ", tool:"scale" },
+    { key:"s3", title:"3) Wasserquelle setzen", text:"Klicke auf die Stelle, wo das Wasser startet (Wasserhahn).", tool:"source" },
+    { key:"s4", title:"4) Zu bewässernde Fläche markieren", text:"Polygon um die Fläche zeichnen. Doppelklick beendet.", tool:"area" },
+    { key:"s5", title:"5) Regner setzen", text:"Maus halten = Vorschau. Bewegen & loslassen = setzen. Danach ziehen.", tool:"sprinkler" },
+    { key:"s6", title:"6) Rohre verlegen", text:"Zeichnen (Doppelklick) oder „Auto-Rohre verbinden“ nutzen.", tool:"pipe" },
+  ];
+
+  function stepStatus(){
+    return {
+      s1: !!state.bg.img,
+      s2: !!state.scale.pxPerMeter,
+      s3: !!state.source,
+      s4: state.areas.length>0,
+      s5: state.sprinklers.length>0,
+      s6: state.pipes.length>0
+    };
+  }
+
+  function setTool(t){
+    tool = t || 'pan';
+    updateCurStepBox();
+    showProps();
+    renderSteps();
+    render();
+  }
+
+  function updateCurStepBox(){
+    const s = STEPS.find(x=>x.tool===tool) || STEPS[0];
+    el('curStepTitle').textContent = s.title;
+    el('curStepText').textContent = s.text;
+  }
+
+  function renderSteps(){
+    const st = stepStatus();
+    const wrap = el('steps');
+    wrap.innerHTML = "";
+
+    // Step 1 with upload controls
+    const s1 = document.createElement('div');
+    s1.className = 'step' + (tool===null ? ' active' : '');
+    s1.innerHTML = `
+      <div style="flex:1;">
+        <div class="sTitle">${STEPS[0].title}</div>
+        <div class="sText">${STEPS[0].text}</div>
+        <div class="row" style="margin-top:10px;">
+          <input id="fileBg" type="file" accept="image/*" style="max-width:220px;" />
+          <button id="btnFitInline" class="primary" type="button">Fit</button>
+        </div>
+      </div>
+      <div>${st.s1 ? `<span class="badge ok">OK</span>` : `<span class="badge open">OFFEN</span>`}</div>
+    `;
+    wrap.appendChild(s1);
+
+    for(const s of STEPS.slice(1)){
+      const div = document.createElement('div');
+      const active = (tool===s.tool);
+      div.className = 'step' + (active ? ' active' : '');
+      const ok = st[s.key];
+      div.innerHTML = `
+        <div style="flex:1;">
+          <div class="sTitle">${s.title}</div>
+          <div class="sText">${s.text}</div>
+          ${s.key==="s6" ? `
+            <div class="row" style="margin-top:10px;">
+              <button id="btnAutoPipesInline" class="vio" type="button">🧩 Auto-Rohre verbinden</button>
+            </div>` : ``}
+        </div>
+        <div>${ok ? `<span class="badge ok">OK</span>` : `<span class="badge open">OFFEN</span>`}</div>
+      `;
+      div.addEventListener('click', (e)=>{
+        if(e.target && e.target.id==="btnAutoPipesInline") return;
+        setTool(s.tool);
+      });
+      wrap.appendChild(div);
+    }
+
+    // Wire upload + fit
+    const fileBg = document.getElementById('fileBg');
+    const btnFitInline = document.getElementById('btnFitInline');
+    if(fileBg) fileBg.onchange = handleBgUpload;
+    if(btnFitInline) btnFitInline.onclick = ()=>{ fitImageToView(); render(); };
+
+    const btnAuto = document.getElementById('btnAutoPipesInline');
+    if(btnAuto) btnAuto.onclick = (ev)=>{ ev.stopPropagation(); autoPipes(); };
+  }
+
+  // Upload background
+  function handleBgUpload(e){
+    const file = e.target.files?.[0];
+    if(!file) return;
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = ()=>{
+      state.bg.img=img; state.bg.w=img.width; state.bg.h=img.height; state.bg.url=url;
+      fitImageToView();
+      setTool('scale'); // direkt weiter
+      recalcWet(); buildBOM(); renderSteps(); render();
+    };
+    img.src = url;
+  }
+
+  function fitImageToView(){
+    if(!state.bg.img) return;
+    const vw=cssW, vh=cssH;
+    const sx=(vw*0.9)/state.bg.w;
+    const sy=(vh*0.9)/state.bg.h;
+    view.s = clamp(Math.min(sx,sy), 0.2, 6);
+    const cx=state.bg.w/2, cy=state.bg.h/2;
+    view.x = (vw/(2*view.s)) - cx;
+    view.y = (vh/(2*view.s)) - cy;
+  }
+
+  // Helpers
   function escapeHtml(str){
     return String(str)
       .replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;")
       .replaceAll('"',"&quot;").replaceAll("'","&#039;");
   }
-
-  // Geometry
   function pointInPoly(pt, poly){
     let inside=false;
     for(let i=0,j=poly.length-1;i<poly.length;j=i++){
@@ -329,20 +452,6 @@
     }
     return false;
   }
-
-  function nearestSnapPoint(w){
-    const candidates = [];
-    if(state.source) candidates.push({kind:'source', x:state.source.x, y:state.source.y});
-    for(const s of state.sprinklers) candidates.push({kind:'sprinkler', x:s.x, y:s.y});
-    let best=null, bestD=Infinity;
-    for(const c of candidates){
-      const d=Math.hypot(w.x-c.x,w.y-c.y);
-      if(d<bestD){bestD=d;best=c;}
-    }
-    if(best && bestD<=SNAP_RADIUS_WORLD()) return {...best,d:bestD};
-    return null;
-  }
-
   function distToSegment(p,a,b){
     const vx=b.x-a.x, vy=b.y-a.y;
     const wx=p.x-a.x, wy=p.y-a.y;
@@ -359,6 +468,18 @@
       if(distToSegment(pt, pts[i], pts[i+1]) <= tol) return true;
     }
     return false;
+  }
+  function nearestSnapPoint(w){
+    const candidates = [];
+    if(state.source) candidates.push({kind:'source', x:state.source.x, y:state.source.y});
+    for(const s of state.sprinklers) candidates.push({kind:'sprinkler', x:s.x, y:s.y});
+    let best=null, bestD=Infinity;
+    for(const c of candidates){
+      const d=Math.hypot(w.x-c.x,w.y-c.y);
+      if(d<bestD){bestD=d;best=c;}
+    }
+    if(best && bestD<=SNAP_RADIUS_WORLD()) return {...best,d:bestD};
+    return null;
   }
 
   // Hit test
@@ -381,7 +502,6 @@
     return null;
   }
 
-  // Selection getter
   function getSel(kind){
     if(state.selection?.kind!==kind) return null;
     if(kind==='sprinkler') return state.sprinklers.find(s=>s.id===state.selection.id)||null;
@@ -390,164 +510,448 @@
     return null;
   }
 
-  // Steps (1..6)
-  function stepStatus(){
-    return {
-      s1: !!state.bg.img,
-      s2: !!state.scale.pxPerMeter,
-      s3: !!state.source,
-      s4: state.areas.length>0,
-      s5: state.sprinklers.length>0,
-      s6: state.pipes.length>0
-    };
+  // Properties show/hide
+  function showProps(){
+    const sel=state.selection;
+    el('propsNone').style.display = sel ? 'none' : 'block';
+    el('propsScale').style.display = (tool==='scale' && state.scale.a && state.scale.b) ? 'block' : 'none';
+    el('propsSource').style.display = (sel?.kind==='source') ? 'block' : 'none';
+    el('propsSpr').style.display = (sel?.kind==='sprinkler') ? 'block' : 'none';
+    el('propsPipe').style.display = (sel?.kind==='pipe') ? 'block' : 'none';
+
+    if(sel?.kind==='source') syncSourceForm();
+    if(sel?.kind==='sprinkler') syncSprForm();
+    if(sel?.kind==='pipe') syncPipeForm();
+    updateSprZoneOptions();
   }
 
-  const STEPS = [
-    {
-      key:"s1",
-      title:"1) Bild hochladen",
-      text:"Bild auswählen und danach „Fit“ drücken.",
-      tool:null
-    },
-    {
-      key:"s2",
-      title:"2) Maßstab setzen",
-      text:"Zwei Punkte setzen (bekannte Länge). Dann Meter eingeben und „Anwenden“.",
-      tool:"scale"
-    },
-    {
-      key:"s3",
-      title:"3) Wasserquelle setzen",
-      text:"Klicke auf die Stelle, wo das Wasser startet (z.B. Wasserhahn).",
-      tool:"source"
-    },
-    {
-      key:"s4",
-      title:"4) Zu bewässernde Fläche markieren",
-      text:"Polygon um die Fläche zeichnen. Doppelklick beendet.",
-      tool:"area"
-    },
-    {
-      key:"s5",
-      title:"5) Regner setzen",
-      text:"Maus gedrückt halten = Vorschau. Bewegen & loslassen = setzen. Danach ziehen zum Verschieben.",
-      tool:"sprinkler"
-    },
-    {
-      key:"s6",
-      title:"6) Rohre verlegen",
-      text:"Entweder zeichnen (Doppelklick) oder „Auto-Rohre verbinden“ nutzen.",
-      tool:"pipe"
+  // UI forms
+  function fillPresetSelect(){
+    const sel=el('sprPreset');
+    sel.innerHTML='';
+    for(const p of PRESETS){
+      const opt=document.createElement('option');
+      opt.value=p.key; opt.textContent=p.label;
+      sel.appendChild(opt);
     }
-  ];
+  }
+  function updateSprZoneOptions(){
+    const sel = el('sprZone');
+    sel.innerHTML='';
+    for(const z of state.zones){
+      const opt=document.createElement('option');
+      opt.value=z.id; opt.textContent=z.name;
+      sel.appendChild(opt);
+    }
+    const s = getSel('sprinkler');
+    sel.value = s ? (s.zoneId || state.zones[0].id) : (state.defaultSpr.zoneId || state.zones[0].id);
+  }
+  function syncSourceForm(){
+    const s=getSel('source'); if(!s) return;
+    el('srcName').value=s.name||"";
+    el('srcInfo').value=s.info||"";
+  }
+  function syncSprForm(){
+    const s=getSel('sprinkler'); if(!s) return;
+    el('sprName').value=s.name||"";
+    el('sprPreset').value=s.presetKey||"L6";
+    el('sprRadius').value=s.radiusM||6;
+    el('sprArc').value=s.arcDeg||360;
+    el('sprDir').value=s.dirDeg||0;
+    el('sprZone').value=s.zoneId || state.zones[0].id;
+  }
+  function syncPipeForm(){
+    const p=getSel('pipe'); if(!p) return;
+    el('pipeName').value=p.name||"";
+    el('pipeDia').value=p.dia||25;
+  }
 
-  function setTool(t){
-    tool = t || 'pan';
-    updateCurStepBox();
-    showProps();
-    renderSteps();
+  // Apply scale
+  el('btnApplyScale').addEventListener('click', ()=>{
+    if(!state.scale.a || !state.scale.b) return;
+    const meters=parseFloat(el('scaleMeters').value||"1");
+    const dpx=dist(state.scale.a,state.scale.b);
+    if(meters>0 && dpx>0){
+      state.scale.pxPerMeter = dpx/meters;
+      recalcWet();
+      renderSteps();
+      setTool('source');
+      render();
+    }
+  });
+
+  // Source edits
+  el('srcName').addEventListener('input', ()=>{
+    const s=getSel('source'); if(!s) return;
+    s.name=el('srcName').value||s.name; buildBOM(); render();
+  });
+  el('srcInfo').addEventListener('input', ()=>{
+    const s=getSel('source'); if(!s) return;
+    s.info=el('srcInfo').value||""; render();
+  });
+  el('btnDeleteSource').addEventListener('click', ()=>{
+    state.source=null;
+    if(state.selection?.kind==='source') state.selection=null;
+    buildBOM(); recalcWet(); renderSteps(); showProps(); render();
+  });
+
+  // Sprinkler edits
+  el('sprName').addEventListener('input', ()=>{
+    const s=getSel('sprinkler'); if(!s) return;
+    s.name=el('sprName').value||s.name; buildBOM(); render();
+  });
+  el('sprPreset').addEventListener('change', ()=>{
+    const s=getSel('sprinkler');
+    const val=el('sprPreset').value;
+    const pr=presetByKey(val);
+    if(s){
+      s.presetKey=val;
+      if(val!=="CUSTOM"){ s.radiusM=pr.radiusM; s.name=`Regner ${pr.label}`; }
+      syncSprForm(); renderZones(); buildBOM(); recalcWet(); render();
+    }
+  });
+  el('sprRadius').addEventListener('input', ()=>{
+    const s=getSel('sprinkler'); if(!s) return;
+    s.radiusM=clamp(parseFloat(el('sprRadius').value||"6"),0.2,200);
+    if(s.presetKey!=="CUSTOM"){ s.presetKey="CUSTOM"; el('sprPreset').value="CUSTOM"; }
+    recalcWet(); render();
+  });
+  el('sprArc').addEventListener('input', ()=>{
+    const s=getSel('sprinkler'); if(!s) return;
+    s.arcDeg=clamp(parseFloat(el('sprArc').value||"360"),30,360);
+    recalcWet(); renderZones(); render();
+  });
+  el('sprDir').addEventListener('input', ()=>{
+    const s=getSel('sprinkler'); if(!s) return;
+    s.dirDeg=((parseFloat(el('sprDir').value||"0")%360)+360)%360;
+    recalcWet(); render();
+  });
+  el('sprZone').addEventListener('change', ()=>{
+    const s=getSel('sprinkler'); if(!s) return;
+    s.zoneId=el('sprZone').value;
+    renderZones(); buildBOM(); render();
+  });
+  el('btnDeleteSpr').addEventListener('click', ()=>{
+    const s=getSel('sprinkler'); if(!s) return;
+    state.sprinklers=state.sprinklers.filter(x=>x.id!==s.id);
+    if(state.selection?.id===s.id) state.selection=null;
+    renderZones(); buildBOM(); recalcWet(); renderSteps(); showProps(); render();
+  });
+  el('btnCopySpr').addEventListener('click', ()=>{
+    const s=getSel('sprinkler'); if(!s) return;
+    const c={...s, id:uid(), x:s.x+20, y:s.y+20};
+    state.sprinklers.push(c);
+    state.selection={kind:'sprinkler', id:c.id};
+    state.sprUndoStack.push({type:'addSpr', id:c.id});
+    renderZones(); buildBOM(); recalcWet(); renderSteps(); showProps(); render();
+  });
+
+  // Pipe edits
+  el('pipeName').addEventListener('input', ()=>{
+    const p=getSel('pipe'); if(!p) return;
+    p.name=el('pipeName').value||p.name; buildBOM(); render();
+  });
+  el('pipeDia').addEventListener('input', ()=>{
+    const p=getSel('pipe'); if(!p) return;
+    p.dia=parseInt(el('pipeDia').value||"25",10); buildBOM(); render();
+  });
+  el('btnDeletePipe').addEventListener('click', ()=>{
+    const p=getSel('pipe'); if(!p) return;
+    state.pipes=state.pipes.filter(x=>x.id!==p.id);
+    if(state.selection?.id===p.id) state.selection=null;
+    buildBOM(); recalcWet(); renderSteps(); showProps(); render();
+  });
+
+  // Toggles
+  el('btnToggleWet').addEventListener('click', ()=>{
+    state.showWet=!state.showWet;
+    el('btnToggleWet').textContent="Nässekarte: " + (state.showWet ? "AN" : "AUS");
     render();
-  }
-
-  function updateCurStepBox(){
-    const s = STEPS.find(x=>x.tool===tool) || STEPS[0];
-    el('curStepTitle').textContent = s.title;
-    el('curStepText').textContent = s.text;
-  }
-
-  function renderSteps(){
-    const st = stepStatus();
-    const wrap = el('steps');
-    wrap.innerHTML = "";
-
-    // Step 1 (Upload integrated)
-    const s1 = document.createElement('div');
-    s1.className='step';
-    s1.innerHTML = `
-      <div style="flex:1;">
-        <div class="sTitle">${STEPS[0].title}</div>
-        <div class="sText">${STEPS[0].text}</div>
-        <div class="row" style="margin-top:10px;">
-          <input id="fileBg" type="file" accept="image/*" style="max-width:220px;" />
-          <button id="btnFitInline" class="primary" type="button">Fit</button>
-        </div>
-      </div>
-      <div>${st.s1 ? `<span class="badge ok">OK</span>` : `<span class="badge open">OFFEN</span>`}</div>
-    `;
-    wrap.appendChild(s1);
-
-    // Steps 2..6
-    for(const s of STEPS.slice(1)){
-      const div = document.createElement('div');
-      div.className='step';
-      const ok = st[s.key];
-      div.innerHTML = `
-        <div style="flex:1;">
-          <div class="sTitle">${s.title}</div>
-          <div class="sText">${s.text}</div>
-          ${s.key==="s6" ? `
-            <div class="row" style="margin-top:10px;">
-              <button id="btnAutoPipesInline" class="vio" type="button">🧩 Auto-Rohre verbinden</button>
-            </div>
-          ` : ``}
-        </div>
-        <div>${ok ? `<span class="badge ok">OK</span>` : `<span class="badge open">OFFEN</span>`}</div>
-      `;
-      div.addEventListener('click', (e)=>{
-        // Click on button should not trigger tool change double
-        if(e.target && e.target.id==="btnAutoPipesInline") return;
-        setTool(s.tool);
-      });
-      wrap.appendChild(div);
-
-      if(s.key==="s6"){
-        // wire button after append
-        setTimeout(()=>{
-          const b = document.getElementById('btnAutoPipesInline');
-          if(b){
-            b.onclick = (ev)=>{ ev.stopPropagation(); autoPipes(); };
-          }
-        }, 0);
-      }
-    }
-
-    // wire upload controls
-    const fileBg = document.getElementById('fileBg');
-    if(fileBg) fileBg.onchange = handleBgUpload;
-
-    const btnFitInline = document.getElementById('btnFitInline');
-    if(btnFitInline) btnFitInline.onclick = ()=>{ fitImageToView(); render(); };
-  }
-
-  // Background
-  function handleBgUpload(e){
-    const file = e.target.files?.[0];
-    if(!file) return;
-    const url = URL.createObjectURL(file);
-    const img = new Image();
-    img.onload = ()=>{
-      state.bg.img=img; state.bg.w=img.width; state.bg.h=img.height; state.bg.url=url;
-      fitImageToView();
-      // nächster Schritt automatisch
-      setTool('scale');
-      recalcWet(); buildBOM(); renderSteps(); render();
-    };
-    img.src=url;
-  }
-
-  function fitImageToView(){
-    if(!state.bg.img) return;
-    const vw=cssW, vh=cssH;
-    const sx=(vw*0.9)/state.bg.w;
-    const sy=(vh*0.9)/state.bg.h;
-    view.s = clamp(Math.min(sx,sy), 0.2, 6);
-    const cx=state.bg.w/2, cy=state.bg.h/2;
-    view.x = (vw/(2*view.s)) - cx;
-    view.y = (vh/(2*view.s)) - cy;
-  }
+  });
+  el('btnToggleGrid').addEventListener('click', ()=>{
+    state.showGrid=!state.showGrid;
+    el('btnToggleGrid').textContent="Raster: " + (state.showGrid ? "AN" : "AUS");
+    render();
+  });
+  el('btnRecalc').addEventListener('click', ()=>{ recalcWet(); render(); });
   el('btnFitView').addEventListener('click', ()=>{ fitImageToView(); render(); });
 
-  // Zones
+  // Undo last sprinkler
+  function undoLastSpr(){
+    for(let i=state.sprUndoStack.length-1;i>=0;i--){
+      const a=state.sprUndoStack[i];
+      if(a.type==='addSpr'){
+        state.sprUndoStack.splice(i,1);
+        const exists = state.sprinklers.find(s=>s.id===a.id);
+        if(exists){
+          state.sprinklers = state.sprinklers.filter(s=>s.id!==a.id);
+          if(state.selection?.kind==='sprinkler' && state.selection.id===a.id) state.selection=null;
+          renderZones(); buildBOM(); recalcWet(); renderSteps(); showProps(); render();
+          return;
+        }
+      }
+    }
+  }
+  el('btnUndoSpr').addEventListener('click', undoLastSpr);
+
+  el('btnClearSpr').addEventListener('click', ()=>{
+    if(!confirm("Alle Regner löschen?")) return;
+    state.sprinklers=[]; state.sprUndoStack=[];
+    if(state.selection?.kind==='sprinkler') state.selection=null;
+    renderZones(); buildBOM(); recalcWet(); renderSteps(); showProps(); render();
+  });
+
+  // Keyboard
+  window.addEventListener('keydown', (e)=>{
+    if(e.code==='Space') spacePan=true;
+    if((e.ctrlKey||e.metaKey) && e.key.toLowerCase()==='z'){
+      e.preventDefault(); undoLastSpr();
+    }
+    if(e.code==='Escape'){
+      drawing={kind:null,pts:[],temp:null,snap:null};
+      state.scale.a=null; state.scale.b=null;
+      liveSpr=null; dragging=null;
+      showProps(); render();
+    }
+  });
+  window.addEventListener('keyup', (e)=>{ if(e.code==='Space') spacePan=false; });
+
+  // Canvas wheel zoom
+  canvas.addEventListener('wheel', (e)=>{
+    e.preventDefault();
+    const zoom = Math.exp(-e.deltaY*0.0012);
+    const mx=e.offsetX, my=e.offsetY;
+    const before=screenToWorld({x:mx,y:my});
+    view.s = clamp(view.s*zoom, 0.2, 6);
+    const after=screenToWorld({x:mx,y:my});
+    view.x += (after.x-before.x);
+    view.y += (after.y-before.y);
+    render();
+  }, {passive:false});
+
+  // Double click finalize
+  canvas.addEventListener('dblclick', ()=>{
+    if(tool==='area' && drawing.kind==='area' && drawing.pts.length>=3) finalizeDrawing();
+    if(tool==='pipe' && drawing.kind==='pipe' && drawing.pts.length>=2) finalizeDrawing();
+  });
+
+  // Mouse
+  canvas.addEventListener('mousedown', (e)=>{
+    mouse.down=true;
+    mouse.last={x:e.offsetX,y:e.offsetY};
+    const w=screenToWorld({x:e.offsetX,y:e.offsetY});
+
+    // Drag existing sprinkler/source
+    const hit = hitTest(w);
+    if(hit && (hit.kind==='sprinkler' || hit.kind==='source')){
+      state.selection=hit;
+      dragging={kind:hit.kind, id:hit.id};
+      showProps(); render();
+      return;
+    }
+
+    // Pan
+    if(spacePan || tool==='pan') return;
+
+    // Scale tool
+    if(tool==='scale'){
+      if(!state.scale.a) state.scale.a=w;
+      else if(!state.scale.b) state.scale.b=w;
+      else { state.scale.a=w; state.scale.b=null; state.scale.pxPerMeter=null; }
+      showProps(); renderSteps(); render();
+      return;
+    }
+
+    // Source tool
+    if(tool==='source'){
+      state.source = { id:uid(), name:"Wasserhahn", info:"", x:w.x, y:w.y };
+      state.selection={kind:'source', id:state.source.id};
+      buildBOM(); renderSteps(); showProps(); render();
+      setTool('area');
+      return;
+    }
+
+    // Sprinkler tool (LIVE preview while holding)
+    if(tool==='sprinkler'){
+      if(!state.scale.pxPerMeter){ alert("Bitte zuerst Maßstab setzen (Schritt 2)."); return; }
+      if(!state.source){ alert("Bitte zuerst Wasserquelle setzen (Schritt 3)."); return; }
+      ensureZones();
+
+      const pr=presetByKey(state.defaultSpr.presetKey);
+      liveSpr = {
+        active:true,
+        data:{
+          id:uid(),
+          presetKey: state.defaultSpr.presetKey,
+          name: `Regner ${pr.label}`,
+          x:w.x, y:w.y,
+          radiusM: pr.radiusM,
+          arcDeg: 360,
+          dirDeg: 0,
+          zoneId: state.defaultSpr.zoneId || state.zones[0].id
+        }
+      };
+      render();
+      return;
+    }
+
+    // Area / Pipe draw
+    if(tool==='area' || tool==='pipe'){
+      if(!drawing.kind) drawing.kind=tool;
+      if(drawing.kind!==tool) drawing={kind:tool, pts:[], temp:null, snap:null};
+
+      let use=w;
+      if(tool==='pipe'){
+        const snap=nearestSnapPoint(w);
+        drawing.snap=snap;
+        if(snap) use={x:snap.x,y:snap.y};
+      }
+
+      if(drawing.pts.length>=3 && tool==='area' && dist(use,drawing.pts[0])<=closeThresholdWorld()){
+        finalizeDrawing(); return;
+      }
+      if(drawing.pts.length>=2 && tool==='pipe' && dist(use,drawing.pts[0])<=closeThresholdWorld()){
+        finalizeDrawing(); return;
+      }
+
+      drawing.pts.push(use);
+      render();
+      return;
+    }
+  });
+
+  canvas.addEventListener('mousemove', (e)=>{
+    const w=screenToWorld({x:e.offsetX,y:e.offsetY});
+
+    // Pan
+    if(mouse.down && (spacePan || tool==='pan') && mouse.last){
+      const dx=(e.offsetX-mouse.last.x)/view.s;
+      const dy=(e.offsetY-mouse.last.y)/view.s;
+      view.x+=dx; view.y+=dy;
+      mouse.last={x:e.offsetX,y:e.offsetY};
+      render();
+      return;
+    }
+
+    // Drag existing
+    if(mouse.down && dragging){
+      if(dragging.kind==='sprinkler'){
+        const s=state.sprinklers.find(x=>x.id===dragging.id);
+        if(s){ s.x=w.x; s.y=w.y; recalcWet(); render(); }
+      } else if(dragging.kind==='source'){
+        if(state.source && state.source.id===dragging.id){ state.source.x=w.x; state.source.y=w.y; render(); }
+      }
+      return;
+    }
+
+    // Live preview sprinkler
+    if(mouse.down && liveSpr?.active){
+      liveSpr.data.x=w.x; liveSpr.data.y=w.y;
+      render();
+      return;
+    }
+
+    // Drawing preview
+    if(drawing.kind){
+      drawing.temp=w;
+      if(drawing.kind==='pipe'){
+        const snap=nearestSnapPoint(w);
+        drawing.snap=snap;
+        if(snap) drawing.temp={x:snap.x,y:snap.y};
+      } else drawing.snap=null;
+      render();
+    }
+  });
+
+  canvas.addEventListener('mouseup', ()=>{
+    mouse.down=false;
+    mouse.last=null;
+
+    if(dragging){
+      dragging=null;
+      buildBOM(); renderZones(); render();
+      return;
+    }
+
+    // Place sprinkler on mouseup
+    if(liveSpr?.active){
+      const s=liveSpr.data;
+      state.sprinklers.push(s);
+      state.selection={kind:'sprinkler', id:s.id};
+      state.sprUndoStack.push({type:'addSpr', id:s.id});
+      liveSpr=null;
+
+      renderZones(); buildBOM(); recalcWet(); renderSteps(); showProps(); render();
+      return;
+    }
+  });
+
+  // Click selects
+  canvas.addEventListener('click', (e)=>{
+    if(mouse.down) return;
+    const w=screenToWorld({x:e.offsetX,y:e.offsetY});
+    const hit=hitTest(w);
+    if(hit){
+      state.selection=hit;
+      showProps();
+      render();
+    }
+  });
+
+  // Finalize drawing
+  function finalizeDrawing(){
+    const kind=drawing.kind;
+    if(!kind) return;
+
+    if(kind==='area'){
+      if(drawing.pts.length<3){ drawing={kind:null,pts:[],temp:null,snap:null}; render(); return; }
+      const a={id:uid(), name:`Fläche ${state.areas.length+1}`, pts:[...drawing.pts]};
+      state.areas.push(a);
+      state.selection={kind:'area', id:a.id};
+      drawing={kind:null,pts:[],temp:null,snap:null};
+      recalcWet(); buildBOM(); renderSteps(); showProps(); render();
+      setTool('sprinkler');
+      return;
+    }
+
+    if(kind==='pipe'){
+      if(drawing.pts.length<2){ drawing={kind:null,pts:[],temp:null,snap:null}; render(); return; }
+      const p={id:uid(), name:`Leitung ${state.pipes.length+1}`, dia:25, pts:[...drawing.pts]};
+      state.pipes.push(p);
+      state.selection={kind:'pipe', id:p.id};
+      drawing={kind:null,pts:[],temp:null,snap:null};
+      buildBOM(); recalcWet(); renderSteps(); showProps(); render();
+      return;
+    }
+  }
+
+  // Auto pipes (Demo: Quelle -> Regner in Reihenfolge)
+  function autoPipes(){
+    if(!state.source){ alert("Bitte zuerst Wasserquelle setzen (Schritt 3)."); return; }
+    if(state.sprinklers.length===0){ alert("Bitte zuerst Regner setzen (Schritt 5)."); return; }
+
+    const remaining = new Set(state.sprinklers.map(s=>s.id));
+    let current = {x:state.source.x, y:state.source.y};
+    const pts = [{x:current.x, y:current.y}];
+
+    while(remaining.size){
+      let best=null, bestD=Infinity;
+      for(const id of remaining){
+        const s = state.sprinklers.find(x=>x.id===id);
+        const d = Math.hypot(s.x-current.x, s.y-current.y);
+        if(d<bestD){bestD=d; best=s;}
+      }
+      if(!best) break;
+      pts.push({x:best.x, y:best.y});
+      current = {x:best.x, y:best.y};
+      remaining.delete(best.id);
+    }
+
+    state.pipes.push({ id:uid(), name:`Auto-Leitung ${state.pipes.length+1}`, dia:25, pts });
+    buildBOM(); recalcWet(); renderSteps(); render();
+  }
+
+  // Zones UI
   function zoneTotals(){
     const totals = new Map();
     for(const z of state.zones) totals.set(z.id, 0);
@@ -603,453 +1007,7 @@
     renderZones(); updateSprZoneOptions(); buildBOM(); render();
   });
 
-  function updateSprZoneOptions(){
-    const sel = el('sprZone');
-    sel.innerHTML='';
-    for(const z of state.zones){
-      const opt=document.createElement('option');
-      opt.value=z.id; opt.textContent=z.name;
-      sel.appendChild(opt);
-    }
-    const s = getSel('sprinkler');
-    sel.value = s ? (s.zoneId || state.zones[0].id) : (state.defaultSpr.zoneId || state.zones[0].id);
-  }
-
-  // Preset select
-  function fillPresetSelect(){
-    const sel=el('sprPreset');
-    sel.innerHTML='';
-    for(const p of PRESETS){
-      const opt=document.createElement('option');
-      opt.value=p.key; opt.textContent=p.label;
-      sel.appendChild(opt);
-    }
-  }
-
-  // Properties
-  function showProps(){
-    const sel=state.selection;
-    el('propsNone').style.display = sel ? 'none' : 'block';
-    el('propsScale').style.display = (tool==='scale' && state.scale.a && state.scale.b) ? 'block' : 'none';
-    el('propsSource').style.display = (sel?.kind==='source') ? 'block' : 'none';
-    el('propsSpr').style.display = (sel?.kind==='sprinkler') ? 'block' : 'none';
-    el('propsPipe').style.display = (sel?.kind==='pipe') ? 'block' : 'none';
-
-    if(sel?.kind==='source') syncSourceForm();
-    if(sel?.kind==='sprinkler') syncSprForm();
-    if(sel?.kind==='pipe') syncPipeForm();
-    updateSprZoneOptions();
-  }
-
-  function syncSourceForm(){
-    const s=getSel('source'); if(!s) return;
-    el('srcName').value=s.name||"";
-    el('srcInfo').value=s.info||"";
-  }
-  function syncSprForm(){
-    const s=getSel('sprinkler'); if(!s) return;
-    el('sprName').value=s.name||"";
-    el('sprPreset').value=s.presetKey||"L6";
-    el('sprRadius').value=s.radiusM||6;
-    el('sprArc').value=s.arcDeg||360;
-    el('sprDir').value=s.dirDeg||0;
-    el('sprZone').value=s.zoneId || state.zones[0].id;
-  }
-  function syncPipeForm(){
-    const p=getSel('pipe'); if(!p) return;
-    el('pipeName').value=p.name||"";
-    el('pipeDia').value=p.dia||25;
-  }
-
-  // Apply scale
-  el('btnApplyScale').addEventListener('click', ()=>{
-    if(!state.scale.a || !state.scale.b) return;
-    const meters=parseFloat(el('scaleMeters').value||"1");
-    const dpx=dist(state.scale.a,state.scale.b);
-    if(meters>0 && dpx>0){
-      state.scale.pxPerMeter = dpx/meters;
-      recalcWet();
-      renderSteps();
-      setTool('source'); // next
-      render();
-    }
-  });
-
-  // Source edits
-  el('srcName').addEventListener('input', ()=>{
-    const s=getSel('source'); if(!s) return;
-    s.name=el('srcName').value||s.name;
-    buildBOM(); render();
-  });
-  el('srcInfo').addEventListener('input', ()=>{
-    const s=getSel('source'); if(!s) return;
-    s.info=el('srcInfo').value||"";
-    render();
-  });
-  el('btnDeleteSource').addEventListener('click', ()=>{
-    state.source=null;
-    if(state.selection?.kind==='source') state.selection=null;
-    buildBOM(); recalcWet(); renderSteps(); showProps(); render();
-  });
-
-  // Sprinkler edits
-  el('sprName').addEventListener('input', ()=>{
-    const s=getSel('sprinkler'); if(!s) return;
-    s.name=el('sprName').value||s.name;
-    buildBOM(); render();
-  });
-  el('sprPreset').addEventListener('change', ()=>{
-    const s=getSel('sprinkler');
-    const val=el('sprPreset').value;
-    const pr=presetByKey(val);
-    if(s){
-      s.presetKey=val;
-      if(val!=="CUSTOM"){ s.radiusM=pr.radiusM; s.name=`Regner ${pr.label}`; }
-      syncSprForm();
-      renderZones(); buildBOM(); recalcWet(); render();
-    } else {
-      state.defaultSpr.presetKey=val;
-      if(val!=="CUSTOM"){ state.defaultSpr.radiusM=pr.radiusM; state.defaultSpr.name=`Regner ${pr.label}`; }
-    }
-  });
-  el('sprRadius').addEventListener('input', ()=>{
-    const s=getSel('sprinkler'); if(!s) return;
-    s.radiusM=clamp(parseFloat(el('sprRadius').value||"6"),0.2,200);
-    if(s.presetKey!=="CUSTOM"){ s.presetKey="CUSTOM"; el('sprPreset').value="CUSTOM"; }
-    recalcWet(); render();
-  });
-  el('sprArc').addEventListener('input', ()=>{
-    const s=getSel('sprinkler'); if(!s) return;
-    s.arcDeg=clamp(parseFloat(el('sprArc').value||"360"),30,360);
-    recalcWet(); renderZones(); render();
-  });
-  el('sprDir').addEventListener('input', ()=>{
-    const s=getSel('sprinkler'); if(!s) return;
-    s.dirDeg=((parseFloat(el('sprDir').value||"0")%360)+360)%360;
-    recalcWet(); render();
-  });
-  el('sprZone').addEventListener('change', ()=>{
-    const s=getSel('sprinkler'); if(!s) return;
-    s.zoneId=el('sprZone').value;
-    renderZones(); buildBOM(); render();
-  });
-  el('btnDeleteSpr').addEventListener('click', ()=>{
-    const s=getSel('sprinkler'); if(!s) return;
-    state.sprinklers=state.sprinklers.filter(x=>x.id!==s.id);
-    if(state.selection?.id===s.id) state.selection=null;
-    renderZones(); buildBOM(); recalcWet(); renderSteps(); showProps(); render();
-  });
-  el('btnCopySpr').addEventListener('click', ()=>{
-    const s=getSel('sprinkler'); if(!s) return;
-    const c={...s, id:uid(), x:s.x+20, y:s.y+20};
-    state.sprinklers.push(c);
-    state.selection={kind:'sprinkler', id:c.id};
-    state.sprUndoStack.push({type:'addSpr', id:c.id});
-    renderZones(); buildBOM(); recalcWet(); renderSteps(); showProps(); render();
-  });
-
-  // Pipe edits
-  el('pipeName').addEventListener('input', ()=>{
-    const p=getSel('pipe'); if(!p) return;
-    p.name=el('pipeName').value||p.name;
-    buildBOM(); render();
-  });
-  el('pipeDia').addEventListener('input', ()=>{
-    const p=getSel('pipe'); if(!p) return;
-    p.dia=parseInt(el('pipeDia').value||"25",10);
-    buildBOM(); render();
-  });
-  el('btnDeletePipe').addEventListener('click', ()=>{
-    const p=getSel('pipe'); if(!p) return;
-    state.pipes=state.pipes.filter(x=>x.id!==p.id);
-    if(state.selection?.id===p.id) state.selection=null;
-    buildBOM(); recalcWet(); renderSteps(); showProps(); render();
-  });
-
-  // Toggles
-  el('btnToggleWet').addEventListener('click', ()=>{
-    state.showWet=!state.showWet;
-    el('btnToggleWet').textContent="Nässekarte: " + (state.showWet ? "AN" : "AUS");
-    render();
-  });
-  el('btnToggleGrid').addEventListener('click', ()=>{
-    state.showGrid=!state.showGrid;
-    el('btnToggleGrid').textContent="Raster: " + (state.showGrid ? "AN" : "AUS");
-    render();
-  });
-  el('btnRecalc').addEventListener('click', ()=>{ recalcWet(); render(); });
-
-  // Undo last sprinkler
-  function undoLastSpr(){
-    for(let i=state.sprUndoStack.length-1;i>=0;i--){
-      const a=state.sprUndoStack[i];
-      if(a.type==='addSpr'){
-        state.sprUndoStack.splice(i,1);
-        const exists = state.sprinklers.find(s=>s.id===a.id);
-        if(exists){
-          state.sprinklers = state.sprinklers.filter(s=>s.id!==a.id);
-          if(state.selection?.kind==='sprinkler' && state.selection.id===a.id) state.selection=null;
-          renderZones(); buildBOM(); recalcWet(); renderSteps(); showProps(); render();
-          return;
-        }
-      }
-    }
-  }
-  el('btnUndoSpr').addEventListener('click', undoLastSpr);
-
-  el('btnClearSpr').addEventListener('click', ()=>{
-    if(!confirm("Alle Regner löschen?")) return;
-    state.sprinklers=[];
-    state.sprUndoStack=[];
-    if(state.selection?.kind==='sprinkler') state.selection=null;
-    renderZones(); buildBOM(); recalcWet(); renderSteps(); showProps(); render();
-  });
-
-  // Keyboard
-  window.addEventListener('keydown', (e)=>{
-    if(e.code==='Space') spacePan=true;
-    if((e.ctrlKey||e.metaKey) && e.key.toLowerCase()==='z'){
-      e.preventDefault();
-      undoLastSpr();
-    }
-    if(e.code==='Escape'){
-      drawing={kind:null,pts:[],temp:null,snap:null};
-      state.scale.a=null; state.scale.b=null;
-      liveSpr=null;
-      dragging=null;
-      showProps(); render();
-    }
-  });
-  window.addEventListener('keyup', (e)=>{ if(e.code==='Space') spacePan=false; });
-
-  // Canvas wheel zoom
-  canvas.addEventListener('wheel', (e)=>{
-    e.preventDefault();
-    const zoom = Math.exp(-e.deltaY*0.0012);
-    const mx=e.offsetX, my=e.offsetY;
-    const before=screenToWorld({x:mx,y:my});
-    view.s = clamp(view.s*zoom, 0.2, 6);
-    const after=screenToWorld({x:mx,y:my});
-    view.x += (after.x-before.x);
-    view.y += (after.y-before.y);
-    render();
-  }, {passive:false});
-
-  // Dblclick finalize drawing
-  canvas.addEventListener('dblclick', ()=>{
-    if(tool==='area' && drawing.kind==='area' && drawing.pts.length>=3) finalizeDrawing();
-    if(tool==='pipe' && drawing.kind==='pipe' && drawing.pts.length>=2) finalizeDrawing();
-  });
-
-  // Mouse events
-  canvas.addEventListener('mousedown', (e)=>{
-    mouse.down=true;
-    mouse.last={x:e.offsetX,y:e.offsetY};
-    const w=screenToWorld({x:e.offsetX,y:e.offsetY});
-
-    const hit = hitTest(w);
-    if(hit && (hit.kind==='sprinkler' || hit.kind==='source')){
-      state.selection=hit;
-      dragging={kind:hit.kind, id:hit.id};
-      showProps(); render();
-      return;
-    }
-
-    if(spacePan || tool==='pan') return;
-
-    if(tool==='scale'){
-      if(!state.scale.a) state.scale.a=w;
-      else if(!state.scale.b) state.scale.b=w;
-      else { state.scale.a=w; state.scale.b=null; state.scale.pxPerMeter=null; }
-      showProps(); renderSteps(); render();
-      return;
-    }
-
-    if(tool==='source'){
-      state.source = { id:uid(), name:"Wasserhahn", info:"", x:w.x, y:w.y };
-      state.selection={kind:'source', id:state.source.id};
-      buildBOM(); renderSteps(); showProps(); render();
-      setTool('area');
-      return;
-    }
-
-    if(tool==='sprinkler'){
-      if(!state.scale.pxPerMeter){ alert("Bitte zuerst Maßstab setzen (Schritt 2)."); return; }
-      if(!state.source){ alert("Bitte zuerst Wasserquelle setzen (Schritt 3)."); return; }
-      ensureZones();
-
-      const pr=presetByKey(state.defaultSpr.presetKey);
-      liveSpr = {
-        active:true,
-        data:{
-          id:uid(),
-          presetKey: state.defaultSpr.presetKey,
-          name: state.defaultSpr.name || `Regner ${pr.label}`,
-          x:w.x, y:w.y,
-          radiusM: state.defaultSpr.radiusM ?? pr.radiusM,
-          arcDeg: state.defaultSpr.arcDeg ?? 360,
-          dirDeg: state.defaultSpr.dirDeg ?? 0,
-          zoneId: state.defaultSpr.zoneId || state.zones[0].id
-        }
-      };
-      render();
-      return;
-    }
-
-    if(tool==='area' || tool==='pipe'){
-      if(!drawing.kind) drawing.kind=tool;
-      if(drawing.kind!==tool) drawing={kind:tool, pts:[], temp:null, snap:null};
-
-      let use=w;
-      if(tool==='pipe'){
-        const snap=nearestSnapPoint(w);
-        drawing.snap=snap;
-        if(snap) use={x:snap.x,y:snap.y};
-      }
-
-      if(drawing.pts.length>=3 && tool==='area' && dist(use,drawing.pts[0])<=closeThresholdWorld()){
-        finalizeDrawing(); return;
-      }
-      if(drawing.pts.length>=2 && tool==='pipe' && dist(use,drawing.pts[0])<=closeThresholdWorld()){
-        finalizeDrawing(); return;
-      }
-
-      drawing.pts.push(use);
-      render();
-      return;
-    }
-  });
-
-  canvas.addEventListener('mousemove', (e)=>{
-    const w=screenToWorld({x:e.offsetX,y:e.offsetY});
-
-    // Pan
-    if(mouse.down && (spacePan || tool==='pan') && mouse.last){
-      const dx=(e.offsetX-mouse.last.x)/view.s;
-      const dy=(e.offsetY-mouse.last.y)/view.s;
-      view.x+=dx; view.y+=dy;
-      mouse.last={x:e.offsetX,y:e.offsetY};
-      render();
-      return;
-    }
-
-    // Drag existing
-    if(mouse.down && dragging){
-      if(dragging.kind==='sprinkler'){
-        const s=state.sprinklers.find(x=>x.id===dragging.id);
-        if(s){ s.x=w.x; s.y=w.y; recalcWet(); render(); }
-      } else if(dragging.kind==='source'){
-        if(state.source && state.source.id===dragging.id){ state.source.x=w.x; state.source.y=w.y; render(); }
-      }
-      return;
-    }
-
-    // Live sprinkler preview
-    if(mouse.down && liveSpr?.active){
-      liveSpr.data.x=w.x; liveSpr.data.y=w.y;
-      render();
-      return;
-    }
-
-    // Drawing preview
-    if(drawing.kind){
-      drawing.temp=w;
-      if(drawing.kind==='pipe'){
-        const snap=nearestSnapPoint(w);
-        drawing.snap=snap;
-        if(snap) drawing.temp={x:snap.x,y:snap.y};
-      } else drawing.snap=null;
-      render();
-    }
-  });
-
-  canvas.addEventListener('mouseup', ()=>{
-    mouse.down=false;
-    mouse.last=null;
-
-    if(dragging){
-      dragging=null;
-      buildBOM(); renderZones(); render();
-      return;
-    }
-
-    if(liveSpr?.active){
-      const s=liveSpr.data;
-      state.sprinklers.push(s);
-      state.selection={kind:'sprinkler', id:s.id};
-      state.sprUndoStack.push({type:'addSpr', id:s.id});
-      liveSpr=null;
-
-      renderZones(); buildBOM(); recalcWet(); renderSteps(); showProps(); render();
-      return;
-    }
-  });
-
-  // Click selects (when not dragging)
-  canvas.addEventListener('click', (e)=>{
-    if(mouse.down) return;
-    const w=screenToWorld({x:e.offsetX,y:e.offsetY});
-    const hit=hitTest(w);
-    if(hit){
-      state.selection=hit;
-      showProps();
-      render();
-    }
-  });
-
-  function finalizeDrawing(){
-    const kind=drawing.kind;
-    if(!kind) return;
-
-    if(kind==='area'){
-      if(drawing.pts.length<3){ drawing={kind:null,pts:[],temp:null,snap:null}; render(); return; }
-      const a={id:uid(), name:`Fläche ${state.areas.length+1}`, pts:[...drawing.pts]};
-      state.areas.push(a);
-      state.selection={kind:'area', id:a.id};
-      drawing={kind:null,pts:[],temp:null,snap:null};
-      recalcWet(); buildBOM(); renderSteps(); showProps(); render();
-      setTool('sprinkler');
-      return;
-    }
-
-    if(kind==='pipe'){
-      if(drawing.pts.length<2){ drawing={kind:null,pts:[],temp:null,snap:null}; render(); return; }
-      const p={id:uid(), name:`Leitung ${state.pipes.length+1}`, dia:25, pts:[...drawing.pts]};
-      state.pipes.push(p);
-      state.selection={kind:'pipe', id:p.id};
-      drawing={kind:null,pts:[],temp:null,snap:null};
-      buildBOM(); recalcWet(); renderSteps(); showProps(); render();
-      return;
-    }
-  }
-
-  // Auto pipes (Demo)
-  function autoPipes(){
-    if(!state.source){ alert("Bitte zuerst Wasserquelle setzen (Schritt 3)."); return; }
-    if(state.sprinklers.length===0){ alert("Bitte zuerst Regner setzen (Schritt 5)."); return; }
-
-    const remaining = new Set(state.sprinklers.map(s=>s.id));
-    let current = {x:state.source.x, y:state.source.y};
-    const pts = [{x:current.x, y:current.y}];
-
-    while(remaining.size){
-      let best=null, bestD=Infinity;
-      for(const id of remaining){
-        const s = state.sprinklers.find(x=>x.id===id);
-        const d = Math.hypot(s.x-current.x, s.y-current.y);
-        if(d<bestD){bestD=d; best=s;}
-      }
-      if(!best) break;
-      pts.push({x:best.x, y:best.y});
-      current = {x:best.x, y:best.y};
-      remaining.delete(best.id);
-    }
-
-    state.pipes.push({ id:uid(), name:`Auto-Leitung ${state.pipes.length+1}`, dia:25, pts });
-    buildBOM(); recalcWet(); renderSteps(); render();
-  }
-
-  // Nässekarte
+  // Wet map
   function recalcWet(){
     state.wet.ready=false; state.wet.data=null;
 
@@ -1105,7 +1063,7 @@
           }
 
           count++;
-          if(count>=4) break; // cap
+          if(count>=4) break;
         }
 
         const idx=j*w+i;
@@ -1125,7 +1083,6 @@
   function updateKPIs(info){
     el('kpiSpr').textContent=String(state.sprinklers.length);
     el('kpiPipe').textContent=String(state.pipes.length);
-
     if(!info){
       el('kpiWet').textContent="–";
       el('kpiOverlap').textContent="–";
@@ -1147,10 +1104,8 @@
       const pr=presetByKey(s.presetKey);
       rows.push({name:`${pr.label} — ${s.name}`, qty:1});
     }
-
     const map=new Map();
     for(const r of rows) map.set(r.name, (map.get(r.name)||0)+r.qty);
-
     return [...map.entries()].map(([name,qty])=>({name,qty})).sort((a,b)=>b.qty-a.qty);
   }
 
@@ -1170,7 +1125,7 @@
     }
   }
 
-  // PDF export
+  // PDF Materialliste
   function openBOMPrintWindow(){
     const items=buildBOMRows();
     const now=new Date();
@@ -1259,7 +1214,6 @@
       defaultSpr: state.defaultSpr
     };
   }
-
   async function deserialize(d){
     state.scale = d.scale || {pxPerMeter:null,a:null,b:null};
     state.source = d.source || null;
@@ -1291,10 +1245,7 @@
     e.target.value="";
   });
 
-  // Buttons
-  el('btnFitView').addEventListener('click', ()=>{ fitImageToView(); render(); });
-
-  // Draw primitives
+  // Render helpers
   function drawLine(a,b,color,lw){
     const p1=worldToScreen(a), p2=worldToScreen(b);
     ctx.save(); ctx.strokeStyle=color; ctx.lineWidth=lw;
@@ -1338,6 +1289,7 @@
     ctx.restore();
     if(label && pts.length>=3) drawLabel(centroid(pts), label, stroke);
   }
+
   function drawGrid(){
     const step=50;
     const topLeft=screenToWorld({x:0,y:0});
@@ -1349,6 +1301,7 @@
     for(let x=startX;x<=endX;x+=step) drawLine({x,y:startY},{x,y:endY},'rgba(255,255,255,.06)',1);
     for(let y=startY;y<=endY;y+=step) drawLine({x:startX,y},{x:endX,y},'rgba(255,255,255,.06)',1);
   }
+
   function drawWet(){
     const {data,w,h} = state.wet.data;
     const {minX,minY,cellPx} = state.wet.bbox;
@@ -1356,10 +1309,7 @@
       for(let i=0;i<w;i++){
         const c=data[j*w+i];
         if(c<=0) continue;
-
-        let a=0.18;        // 1 = hell
-        if(c===2) a=0.32;  // 2 = dunkler
-        else if(c>=3) a=0.48; // 3+ = sehr dunkel
+        let a=0.18; if(c===2) a=0.32; else if(c>=3) a=0.48;
 
         const x=minX+i*cellPx;
         const y=minY+j*cellPx;
@@ -1372,6 +1322,7 @@
       }
     }
   }
+
   function drawSource(s){
     const p=worldToScreen({x:s.x,y:s.y});
     ctx.save();
@@ -1385,6 +1336,7 @@
     if(s.info) ctx.fillText(`${s.info}`, p.x+10, p.y-3);
     ctx.restore();
   }
+
   function drawSprinkler(s, preview=false){
     if(!state.scale.pxPerMeter) return;
     const pr=presetByKey(s.presetKey);
@@ -1416,6 +1368,7 @@
     ctx.fillText(`${pr.label} • ${s.radiusM.toFixed(1)}m • ${zn}`, p.x+8, p.y+6);
     ctx.restore();
   }
+
   function drawPipes(){
     for(const p of state.pipes){
       drawPoly(p.pts,null,'rgba(251,191,36,.75)',3,false,null);
@@ -1424,6 +1377,7 @@
       }
     }
   }
+
   function drawSnapIndicator(){
     if(!(tool==='pipe' && drawing.kind==='pipe')) return;
     if(!drawing.snap) return;
@@ -1492,6 +1446,9 @@
     }
   }
 
+  // PDF button
+  el('btnPdfBom').addEventListener('click', openBOMPrintWindow);
+
   // Init
   fillPresetSelect();
   renderZones();
@@ -1503,12 +1460,6 @@
   fitCanvas();
   setTool('pan');
   render();
-
-  // Default preset fields for selection editing
-  // (If user selects sprinkler, select shows its data)
-  // If user wants to set default without selection, they can pick a sprinkler then copy.
-
-  // PDF button already wired, JSON wired.
 
 })();
 </script>
