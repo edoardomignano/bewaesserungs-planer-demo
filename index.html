@@ -3,351 +3,480 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>PVC WELT Planer – Step 2 (Bild + Maßstab)</title>
+  <title>PVC WELT Bewässerungsplaner – Step 1–3 (Bild • Maßstab • Wasserquelle)</title>
   <style>
     :root{
       --bg:#0b0f14; --panel:#121926; --muted:#9aa4b2; --text:#e6edf3;
       --accent:#4cc9f0; --warn:#fbbf24; --ok:#34d399;
     }
     *{box-sizing:border-box;}
-    body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;background:var(--bg);color:var(--text);}
+    body{margin:0;font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Arial;background:var(--bg);color:var(--text);}
     header{padding:12px 16px;border-bottom:1px solid rgba(255,255,255,.08);display:flex;align-items:center;justify-content:space-between;gap:12px;}
-    .title{font-weight:900;}
+    .title{font-weight:950;letter-spacing:.2px;}
     .sub{color:var(--muted);font-size:12px;margin-top:2px;}
-    .wrap{display:grid;grid-template-columns:360px 1fr;gap:12px;padding:12px;height:calc(100vh - 58px);}
+    .wrap{display:grid;grid-template-columns:360px 1fr 340px;gap:12px;padding:12px;height:calc(100vh - 54px);}
     .panel{background:var(--panel);border:1px solid rgba(255,255,255,.08);border-radius:14px;padding:12px;overflow:auto;}
     canvas{width:100%;height:100%;background:#070a10;border-radius:14px;border:1px solid rgba(255,255,255,.08);}
     h3{margin:0 0 10px;font-size:14px;color:#dbe7ff;}
-    .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:10px 0;}
+    .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:8px 0;}
+    label{font-size:12px;color:var(--muted);}
     input,button{background:#0f1520;color:var(--text);border:1px solid rgba(255,255,255,.12);border-radius:10px;padding:8px 10px;font-size:13px;}
     input[type="number"]{width:120px;}
+    input[type="text"]{width:100%;}
     button{cursor:pointer;}
-    button.primary{border-color:rgba(76,201,240,.35);background:linear-gradient(135deg, rgba(76,201,240,.25), rgba(76,201,240,.08));}
-    button.warn{border-color:rgba(251,191,36,.35);background:linear-gradient(135deg, rgba(251,191,36,.25), rgba(251,191,36,.08));}
-    button.ok{border-color:rgba(52,211,153,.35);background:linear-gradient(135deg, rgba(52,211,153,.25), rgba(52,211,153,.08));}
+    button.primary{background:linear-gradient(135deg, rgba(76,201,240,.25), rgba(76,201,240,.08));border-color:rgba(76,201,240,.35);}
+    button.warn{background:linear-gradient(135deg, rgba(251,191,36,.25), rgba(251,191,36,.08));border-color:rgba(251,191,36,.35);}
+    button.ok{background:linear-gradient(135deg, rgba(52,211,153,.25), rgba(52,211,153,.08));border-color:rgba(52,211,153,.35);}
+    .toolgrid{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
     .hint{font-size:12px;color:var(--muted);line-height:1.35;}
-    .mono{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;}
     .sep{height:1px;background:rgba(255,255,255,.08);margin:12px 0;}
-    .pill{display:inline-flex;gap:8px;align-items:center;border:1px solid rgba(255,255,255,.12);border-radius:999px;padding:4px 10px;font-size:12px;color:var(--muted);}
+    .mono{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;}
+    .badge{font-size:11px;padding:3px 8px;border-radius:999px;border:1px solid rgba(255,255,255,.12);color:var(--muted);}
+    .badge.ok{border-color:rgba(52,211,153,.35);color:rgba(52,211,153,.95);}
+    .badge.open{border-color:rgba(251,191,36,.35);color:rgba(251,191,36,.95);}
+    .step{
+      display:flex;align-items:flex-start;justify-content:space-between;gap:10px;
+      padding:10px;border:1px solid rgba(255,255,255,.08);border-radius:12px;margin:8px 0;
+      background:rgba(0,0,0,.18); cursor:pointer; user-select:none;
+    }
+    .step:hover{border-color:rgba(76,201,240,.25);}
+    .step .sTitle{font-weight:900;font-size:13px;}
+    .step .sText{font-size:12px;color:var(--muted);margin-top:4px;line-height:1.3;}
   </style>
 </head>
 <body>
 <header>
   <div>
-    <div class="title">PVC WELT Planer <span class="mono">Step 2</span></div>
-    <div class="sub">Bild hochladen • Fit • Pan/Zoom • 📏 Maßstab (2 Punkte)</div>
+    <div class="title">PVC WELT Bewässerungsplaner <span class="mono">Step 1–3</span></div>
+    <div class="sub">1) Bild • 2) Maßstab • 3) Wasserquelle</div>
   </div>
   <div class="row">
-    <span class="pill">Tool: <b id="toolName" style="color:rgba(230,237,243,.95);">Pan</b></span>
-    <span class="pill">Status: <span id="status">kein Bild</span></span>
+    <button class="primary" id="btnFitView">Bild: Fit</button>
   </div>
 </header>
 
 <div class="wrap">
+  <!-- LEFT -->
   <div class="panel">
-    <h3>1) Bild (Plan) hochladen</h3>
+    <h3>Schritt für Schritt</h3>
+    <div class="hint">👉 Klick auf einen Schritt = Tool wird gewählt.</div>
+    <div id="steps"></div>
+
+    <div class="sep"></div>
+
+    <h3>Tools</h3>
+    <div class="toolgrid">
+      <button id="toolPan" class="primary">🖐️ Pan/Zoom</button>
+      <button id="toolSelect">🧲 Auswahl</button>
+      <button id="toolScale" class="warn">📏 Maßstab</button>
+      <button id="toolSource" class="ok">🚰 Wasserquelle</button>
+    </div>
+
+    <div class="sep"></div>
+
+    <h3>Bild (Plan) hochladen</h3>
     <div class="row">
       <input id="fileBg" type="file" accept="image/*" />
-      <button id="btnFit" class="primary">Bild: Fit</button>
     </div>
-    <div class="hint">Mausrad zoom • Ziehen = Pan</div>
+    <div class="hint">Bild wird proportional angezeigt (kein Verzerren).</div>
 
     <div class="sep"></div>
 
-    <h3>2) Maßstab setzen</h3>
-    <div class="row">
-      <button id="toolPan" class="primary">🖐️ Pan</button>
-      <button id="toolScale" class="warn">📏 Maßstab</button>
-    </div>
-
-    <div class="hint" id="scaleHint">
-      Wähle <b>📏 Maßstab</b> → klicke Punkt A und Punkt B → Meter eingeben → Anwenden.
-    </div>
-
-    <div class="row">
-      <label class="hint">Meter zwischen A & B</label>
-      <input id="scaleMeters" type="number" min="0.1" step="0.1" value="5" />
-      <button id="btnApplyScale" class="ok" disabled>Anwenden</button>
-    </div>
-
+    <h3>Shortcuts</h3>
     <div class="hint">
-      pxPerMeter: <span id="pxPerM" class="mono">–</span><br>
-      Messung: <span id="measureInfo" class="mono">–</span>
+      <div><span class="mono">Mausrad</span> Zoom</div>
+      <div><span class="mono">Space</span> Pan (halten)</div>
+      <div><span class="mono">Esc</span> Maßstab reset (A/B)</div>
     </div>
-
-    <div class="sep"></div>
-
-    <h3>Ansicht</h3>
-    <div class="hint">
-      Zoom: <span id="kZoom" class="mono">1.00</span><br>
-      Offset: <span id="kOff" class="mono">0,0</span>
-    </div>
-
-    <div class="sep"></div>
-    <button id="btnResetScale" class="warn" style="width:100%;">Maßstab zurücksetzen</button>
   </div>
 
+  <!-- CENTER -->
   <div class="panel" style="padding:10px;">
     <canvas id="c"></canvas>
+  </div>
+
+  <!-- RIGHT -->
+  <div class="panel">
+    <h3>Eigenschaften</h3>
+    <div class="hint" id="modeHint">Wähle einen Schritt oder Tool.</div>
+
+    <div class="sep"></div>
+
+    <div id="propsNone" class="hint">Noch nichts ausgewählt.</div>
+
+    <div id="propsScale" style="display:none;">
+      <h3>Maßstab</h3>
+      <div class="row">
+        <label>Meter zwischen Punkt A und B</label>
+        <input id="scaleMeters" type="number" min="0.1" step="0.1" value="5" />
+        <button id="btnApplyScale" class="primary">Anwenden</button>
+      </div>
+      <div class="hint">📏 Tool: Punkt A klicken, Punkt B klicken, dann „Anwenden“.</div>
+    </div>
+
+    <div id="propsSource" style="display:none;">
+      <h3>Wasserquelle</h3>
+      <div class="row"><label>Name</label><input id="srcName" type="text" value="Wasserhahn" /></div>
+      <div class="hint">🧲 Auswahl-Tool: Quelle anklicken & ziehen.</div>
+      <div class="row">
+        <button id="btnDeleteSource" class="warn">Quelle löschen</button>
+      </div>
+    </div>
   </div>
 </div>
 
 <script>
 (() => {
-  const canvas = document.getElementById("c");
-  const ctx = canvas.getContext("2d");
+  const canvas = document.getElementById('c');
+  const ctx = canvas.getContext('2d');
   const el = (id) => document.getElementById(id);
 
-  // View (Weltkoordinaten = Bildpixel)
-  let view = { x: 0, y: 0, s: 1 };
-  let mouse = { down:false, last:null };
+  const clamp = (v,a,b)=>Math.max(a,Math.min(b,v));
+  const dist = (a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
 
-  const state = {
-    bg: { img:null, w:0, h:0, url:null },
-    tool: "pan", // "pan" | "scale"
-    scale: { a:null, b:null, pxPerMeter:null }
-  };
-
-  function clamp(v,a,b){ return Math.max(a, Math.min(b, v)); }
-  function dist(a,b){ return Math.hypot(a.x-b.x, a.y-b.y); }
-
-  function worldToScreen(p){ return { x:(p.x + view.x) * view.s, y:(p.y + view.y) * view.s }; }
-  function screenToWorld(p){ return { x:p.x / view.s - view.x, y:p.y / view.s - view.y }; }
-
-  function setTool(t){
-    state.tool = t;
-    el("toolName").textContent = (t==="pan" ? "Pan" : "Maßstab");
-    el("toolPan").classList.toggle("primary", t==="pan");
-    el("toolScale").classList.toggle("warn", t==="scale");
-    renderUI();
-    render();
-  }
+  // View
+  let view = { x: 20, y: 20, s: 1 };
+  function worldToScreen(p){ return { x:(p.x+view.x)*view.s, y:(p.y+view.y)*view.s }; }
+  function screenToWorld(p){ return { x:p.x/view.s - view.x, y:p.y/view.s - view.y }; }
 
   function fitCanvas(){
     const rect = canvas.getBoundingClientRect();
     const dpr = window.devicePixelRatio || 1;
-    canvas.width  = Math.floor(rect.width  * dpr);
-    canvas.height = Math.floor(rect.height * dpr);
+    canvas.width = Math.max(900, Math.floor(rect.width*dpr));
+    canvas.height = Math.max(600, Math.floor(rect.height*dpr));
     ctx.setTransform(dpr,0,0,dpr,0,0);
     render();
   }
-  window.addEventListener("resize", fitCanvas);
+  window.addEventListener('resize', fitCanvas);
 
-  function fitImageToView(){
-    if(!state.bg.img) return;
-    const rect = canvas.getBoundingClientRect();
-    const vw = rect.width, vh = rect.height;
-    const sx = (vw * 0.92) / state.bg.w;
-    const sy = (vh * 0.92) / state.bg.h;
-    view.s = clamp(Math.min(sx, sy), 0.15, 10);
+  // State
+  const state = {
+    bg: { img:null, w:0, h:0, url:null },
+    scale: { pxPerMeter:null, a:null, b:null },
+    source: null, // {x,y,name}
+    selection: null, // {kind:'source'}
+  };
 
-    const cx = state.bg.w / 2;
-    const cy = state.bg.h / 2;
-    view.x = (vw/(2*view.s)) - cx;
-    view.y = (vh/(2*view.s)) - cy;
-  }
+  // Tools
+  let tool = 'pan'; // pan | select | scale | source
+  let mouse = { down:false, last:null, x:0, y:0 };
+  let spacePan = false;
 
-  function renderUI(){
-    // apply button enabled only if two points exist
-    const ready = !!(state.scale.a && state.scale.b);
-    el("btnApplyScale").disabled = !ready;
-
-    // infos
-    if(state.scale.pxPerMeter){
-      el("pxPerM").textContent = state.scale.pxPerMeter.toFixed(3);
-    } else {
-      el("pxPerM").textContent = "–";
-    }
-
-    if(state.scale.a && state.scale.b){
-      const dpx = dist(state.scale.a, state.scale.b);
-      const meters = parseFloat(el("scaleMeters").value || "1");
-      const mText = state.scale.pxPerMeter ? (dpx/state.scale.pxPerMeter).toFixed(2) : "—";
-      el("measureInfo").textContent = `${dpx.toFixed(1)} px  |  ${mText} m`;
-      el("scaleHint").innerHTML = `Punkt A und B gesetzt ✅ → Meter eingeben → <b>Anwenden</b>`;
-    } else if(state.scale.a && !state.scale.b){
-      el("measureInfo").textContent = "Punkt A gesetzt – jetzt Punkt B klicken";
-      el("scaleHint").innerHTML = `Punkt A gesetzt ✅ → jetzt Punkt B klicken`;
-    } else {
-      el("measureInfo").textContent = "–";
-      el("scaleHint").innerHTML = `Wähle <b>📏 Maßstab</b> → klicke Punkt A und Punkt B → Meter eingeben → Anwenden.`;
-    }
-  }
-
-  function drawPoint(p, color, r=6){
-    const s = worldToScreen(p);
-    ctx.save();
-    ctx.fillStyle = color;
-    ctx.beginPath();
-    ctx.arc(s.x, s.y, r, 0, Math.PI*2);
-    ctx.fill();
-    ctx.restore();
-  }
-
-  function drawLine(a,b,color,lw){
-    const p1 = worldToScreen(a);
-    const p2 = worldToScreen(b);
-    ctx.save();
-    ctx.strokeStyle = color;
-    ctx.lineWidth = lw;
-    ctx.beginPath();
-    ctx.moveTo(p1.x, p1.y);
-    ctx.lineTo(p2.x, p2.y);
-    ctx.stroke();
-    ctx.restore();
-  }
-
-  function drawLabel(mid, text){
-    const s = worldToScreen(mid);
-    ctx.save();
-    ctx.font = "12px system-ui";
-    const pad=6;
-    const w = ctx.measureText(text).width;
-    ctx.fillStyle = "rgba(0,0,0,.55)";
-    ctx.fillRect(s.x - w/2 - pad, s.y - 20, w + pad*2, 18);
-    ctx.fillStyle = "rgba(251,191,36,.95)";
-    ctx.textAlign="center"; ctx.textBaseline="middle";
-    ctx.fillText(text, s.x, s.y - 11);
-    ctx.restore();
-  }
-
-  function render(){
-    const rect = canvas.getBoundingClientRect();
-    ctx.clearRect(0,0,rect.width,rect.height);
-
-    // Bild
-    if(state.bg.img){
-      const p0 = worldToScreen({x:0,y:0});
-      ctx.drawImage(state.bg.img, p0.x, p0.y, state.bg.w*view.s, state.bg.h*view.s);
-    } else {
-      ctx.save();
-      ctx.fillStyle = "rgba(255,255,255,.08)";
-      ctx.font = "14px system-ui";
-      ctx.fillText("Bitte Bild hochladen…", 16, 28);
-      ctx.restore();
-    }
-
-    // Maßstab overlay
-    if(state.scale.a) drawPoint(state.scale.a, "rgba(251,191,36,.95)", 6);
-    if(state.scale.b) drawPoint(state.scale.b, "rgba(251,191,36,.95)", 6);
-    if(state.scale.a && state.scale.b){
-      drawLine(state.scale.a, state.scale.b, "rgba(251,191,36,.9)", 2);
-      const dpx = dist(state.scale.a, state.scale.b);
-      const txt = state.scale.pxPerMeter
-        ? `${(dpx/state.scale.pxPerMeter).toFixed(2)} m`
-        : `${dpx.toFixed(0)} px`;
-      drawLabel({x:(state.scale.a.x+state.scale.b.x)/2, y:(state.scale.a.y+state.scale.b.y)/2}, txt);
-    }
-
-    // HUD
-    el("kZoom").textContent = view.s.toFixed(2);
-    el("kOff").textContent = `${view.x.toFixed(1)}, ${view.y.toFixed(1)}`;
-  }
-
-  // Upload
-  el("fileBg").addEventListener("change", (e) => {
-    const file = e.target.files?.[0];
-    if(!file) return;
-    const url = URL.createObjectURL(file);
-    const img = new Image();
-    img.onload = () => {
-      state.bg.img = img;
-      state.bg.w = img.width;
-      state.bg.h = img.height;
-      state.bg.url = url;
-      el("status").textContent = `Bild geladen (${img.width}×${img.height})`;
-      fitImageToView();
-      renderUI();
-      render();
+  // Steps UI
+  function stepStatus(){
+    return {
+      s1: !!state.bg.img,
+      s2: !!state.scale.pxPerMeter,
+      s3: !!state.source,
     };
-    img.src = url;
-  });
+  }
 
-  el("btnFit").addEventListener("click", () => { fitImageToView(); render(); });
+  function renderSteps(){
+    const st=stepStatus();
+    const steps = [
+      { title:'1) Bild hochladen', ok:st.s1, text:'Planbild hochladen und „Bild: Fit“ drücken.', action:()=>el('fileBg').click() },
+      { title:'2) Maßstab setzen', ok:st.s2, text:'📏 Tool → 2 Punkte klicken → Meter → Anwenden.', action:()=>setTool('scale') },
+      { title:'3) Wasserquelle setzen', ok:st.s3, text:'🚰 Tool → Klick setzt die Quelle (neuer Klick ersetzt).', action:()=>setTool('source') },
+      { title:'(Optional) Quelle verschieben', ok:true, text:'🧲 Auswahl → Quelle anklicken & ziehen.', action:()=>setTool('select') },
+    ];
+
+    const wrap=el('steps');
+    wrap.innerHTML='';
+    for(const s of steps){
+      const div=document.createElement('div');
+      div.className='step';
+      div.innerHTML=`
+        <div>
+          <div class="sTitle">${s.title}</div>
+          <div class="sText">${s.text}</div>
+        </div>
+        <div>${s.ok ? `<span class="badge ok">OK</span>` : `<span class="badge open">OFFEN</span>`}</div>
+      `;
+      div.addEventListener('click', s.action);
+      wrap.appendChild(div);
+    }
+  }
 
   // Tool buttons
-  el("toolPan").addEventListener("click", () => setTool("pan"));
-  el("toolScale").addEventListener("click", () => setTool("scale"));
+  const toolButtons = {
+    pan: el('toolPan'),
+    select: el('toolSelect'),
+    scale: el('toolScale'),
+    source: el('toolSource'),
+  };
 
-  // Apply scale
-  el("btnApplyScale").addEventListener("click", () => {
-    if(!(state.scale.a && state.scale.b)) return;
-    const meters = parseFloat(el("scaleMeters").value || "1");
-    const dpx = dist(state.scale.a, state.scale.b);
-    if(meters > 0 && dpx > 0){
-      state.scale.pxPerMeter = dpx / meters;
-      renderUI();
+  function setTool(t){
+    tool=t;
+    Object.entries(toolButtons).forEach(([k,btn])=>{
+      btn.classList.remove('primary','warn','ok');
+      if(k===t){
+        if(k==='scale') btn.classList.add('warn');
+        else if(k==='source') btn.classList.add('ok');
+        else btn.classList.add('primary');
+      }
+    });
+    updateModeHint();
+    showProps();
+    render();
+  }
+
+  function updateModeHint(){
+    const hints={
+      pan:"Pan/Zoom: ziehen oder Space halten. Mausrad zoom.",
+      select:"Auswahl: Quelle anklicken und ziehen.",
+      scale:"Maßstab: Punkt A klicken, Punkt B klicken, Meter → Anwenden.",
+      source:"Wasserquelle: Klick setzt die Quelle (ersetzt alte).",
+    };
+    el('modeHint').textContent=hints[tool]||"";
+  }
+
+  // Background upload
+  el('fileBg').addEventListener('change', (e)=>{
+    const file=e.target.files?.[0]; if(!file) return;
+    const url=URL.createObjectURL(file);
+    const img=new Image();
+    img.onload=()=>{
+      state.bg.img=img; state.bg.w=img.width; state.bg.h=img.height; state.bg.url=url;
+      fitImageToView();
+      renderSteps();
+      setTool('scale'); // direkt Maßstab
+      render();
+    };
+    img.src=url;
+  });
+
+  function fitImageToView(){
+    const rect=canvas.getBoundingClientRect();
+    const vw=rect.width, vh=rect.height;
+    if(!state.bg.img) return;
+    const sx=(vw*0.9)/state.bg.w;
+    const sy=(vh*0.9)/state.bg.h;
+    view.s=clamp(Math.min(sx,sy),0.2,6);
+    const cx=state.bg.w/2, cy=state.bg.h/2;
+    view.x=(vw/(2*view.s))-cx;
+    view.y=(vh/(2*view.s))-cy;
+  }
+  el('btnFitView').addEventListener('click', ()=>{ fitImageToView(); render(); });
+
+  // Scale apply
+  el('btnApplyScale').addEventListener('click', ()=>{
+    if(!state.scale.a||!state.scale.b) return;
+    const meters=parseFloat(el('scaleMeters').value||"1");
+    const dpx=dist(state.scale.a,state.scale.b);
+    if(meters>0 && dpx>0){
+      state.scale.pxPerMeter=dpx/meters;
+      renderSteps();
+      setTool('source'); // nächster Schritt
       render();
     }
   });
 
-  // Reset scale
-  el("btnResetScale").addEventListener("click", () => {
-    state.scale.a = null;
-    state.scale.b = null;
-    state.scale.pxPerMeter = null;
-    renderUI();
+  // Source props
+  el('srcName').addEventListener('input', ()=>{
+    if(!state.source) return;
+    state.source.name = el('srcName').value || "Wasserhahn";
     render();
   });
+  el('btnDeleteSource').addEventListener('click', ()=>{
+    state.source=null;
+    state.selection=null;
+    renderSteps();
+    showProps();
+    render();
+  });
+
+  function showProps(){
+    const sel=state.selection;
+    el('propsNone').style.display = 'block';
+    el('propsScale').style.display = 'none';
+    el('propsSource').style.display = 'none';
+
+    if(tool==='scale' && state.scale.a && state.scale.b){
+      el('propsNone').style.display='none';
+      el('propsScale').style.display='block';
+    }
+    if(sel?.kind==='source' && state.source){
+      el('propsNone').style.display='none';
+      el('propsSource').style.display='block';
+      el('srcName').value = state.source.name || "Wasserhahn";
+    }
+  }
+
+  // Hit test (nur Quelle)
+  function hitTest(w){
+    if(state.source){
+      if(Math.hypot(w.x-state.source.x, w.y-state.source.y) < 14/view.s){
+        return {kind:'source'};
+      }
+    }
+    return null;
+  }
+
+  // Keyboard
+  window.addEventListener('keydown', (e)=>{
+    if(e.code==='Space') spacePan=true;
+    if(e.code==='Escape'){
+      // nur Maßstab-Punkte resetten
+      state.scale.a=null;
+      state.scale.b=null;
+      // pxPerMeter bleibt (wenn schon angewendet)
+      showProps();
+      render();
+    }
+  });
+  window.addEventListener('keyup', (e)=>{ if(e.code==='Space') spacePan=false; });
 
   // Mouse
-  canvas.addEventListener("mousedown", (e) => {
-    mouse.down = true;
-    mouse.last = { x:e.offsetX, y:e.offsetY };
+  canvas.addEventListener('mousedown', (e)=>{
+    mouse.down=true;
+    mouse.last={x:e.offsetX,y:e.offsetY};
+    const w=screenToWorld({x:e.offsetX,y:e.offsetY});
 
-    const w = screenToWorld({x:e.offsetX, y:e.offsetY});
+    if(spacePan) return;
+    if(tool==='pan') return;
 
-    if(state.tool === "scale"){
-      // 2-Punkt Logik
-      if(!state.scale.a){
-        state.scale.a = w;
-      } else if(!state.scale.b){
-        state.scale.b = w;
-      } else {
-        // dritter Klick startet neu
-        state.scale.a = w;
-        state.scale.b = null;
-        state.scale.pxPerMeter = null;
-      }
-      renderUI();
+    if(tool==='select'){
+      state.selection = hitTest(w);
+      showProps();
+      render();
+      return;
+    }
+
+    if(tool==='scale'){
+      if(!state.scale.a) state.scale.a=w;
+      else if(!state.scale.b) state.scale.b=w;
+      else { state.scale.a=w; state.scale.b=null; } // A neu
+      showProps();
+      render();
+      return;
+    }
+
+    if(tool==='source'){
+      // Quelle setzen (ersetzt alte)
+      state.source = { x:w.x, y:w.y, name: state.source?.name || "Wasserhahn" };
+      state.selection = {kind:'source'};
+      renderSteps();
+      showProps();
+      render();
+      return;
+    }
+  });
+
+  canvas.addEventListener('mousemove', (e)=>{
+    mouse.x=e.offsetX; mouse.y=e.offsetY;
+    const w=screenToWorld({x:e.offsetX,y:e.offsetY});
+
+    if(!mouse.down){ return; }
+
+    if(tool==='pan' || spacePan){
+      const dx=(e.offsetX-mouse.last.x)/view.s;
+      const dy=(e.offsetY-mouse.last.y)/view.s;
+      view.x+=dx; view.y+=dy;
+      mouse.last={x:e.offsetX,y:e.offsetY};
+      render(); return;
+    }
+
+    // Drag Quelle
+    if(tool==='select' && state.selection?.kind==='source' && state.source){
+      state.source.x=w.x; state.source.y=w.y;
       render();
     }
   });
 
-  window.addEventListener("mouseup", () => { mouse.down = false; mouse.last = null; });
-
-  canvas.addEventListener("mousemove", (e) => {
-    if(!mouse.down) return;
-    if(state.tool !== "pan") return;
-
-    const dx = (e.offsetX - mouse.last.x) / view.s;
-    const dy = (e.offsetY - mouse.last.y) / view.s;
-    view.x += dx;
-    view.y += dy;
-    mouse.last = { x:e.offsetX, y:e.offsetY };
-    render();
+  canvas.addEventListener('mouseup', ()=>{
+    mouse.down=false; mouse.last=null;
   });
 
-  canvas.addEventListener("wheel", (e) => {
+  canvas.addEventListener('wheel', (e)=>{
     e.preventDefault();
-    const zoom = Math.exp(-e.deltaY * 0.0012);
-    const mx = e.offsetX, my = e.offsetY;
-
-    const before = screenToWorld({x:mx, y:my});
-    view.s = clamp(view.s * zoom, 0.15, 10);
-    const after = screenToWorld({x:mx, y:my});
-
-    view.x += (after.x - before.x);
-    view.y += (after.y - before.y);
-
+    const zoom = Math.exp(-e.deltaY*0.0012);
+    const mx=e.offsetX, my=e.offsetY;
+    const before=screenToWorld({x:mx,y:my});
+    view.s = clamp(view.s*zoom, 0.2, 6);
+    const after=screenToWorld({x:mx,y:my});
+    view.x += (after.x-before.x);
+    view.y += (after.y-before.y);
     render();
   }, {passive:false});
 
+  // Drawing helpers
+  function drawLine(a,b,color,lw){
+    const p1=worldToScreen(a), p2=worldToScreen(b);
+    ctx.save(); ctx.strokeStyle=color; ctx.lineWidth=lw;
+    ctx.beginPath(); ctx.moveTo(p1.x,p1.y); ctx.lineTo(p2.x,p2.y); ctx.stroke();
+    ctx.restore();
+  }
+  function drawPoint(p,color,r=5){
+    const s=worldToScreen(p);
+    ctx.save(); ctx.fillStyle=color;
+    ctx.beginPath(); ctx.arc(s.x,s.y,r,0,Math.PI*2); ctx.fill();
+    ctx.restore();
+  }
+  function drawLabel(p,text,color){
+    const s=worldToScreen(p);
+    ctx.save();
+    ctx.font="12px ui-sans-serif,system-ui";
+    const pad=6; const w=ctx.measureText(text).width;
+    ctx.fillStyle="rgba(0,0,0,.55)";
+    ctx.fillRect(s.x-w/2-pad, s.y-18, w+pad*2, 18);
+    ctx.fillStyle=color||"rgba(255,255,255,.9)";
+    ctx.textAlign="center"; ctx.textBaseline="middle";
+    ctx.fillText(text, s.x, s.y-9);
+    ctx.restore();
+  }
+
+  function drawSource(src){
+    const p=worldToScreen({x:src.x,y:src.y});
+    ctx.save();
+    ctx.fillStyle='rgba(52,211,153,.95)';
+    ctx.beginPath(); ctx.arc(p.x,p.y,7,0,Math.PI*2); ctx.fill();
+    ctx.strokeStyle='rgba(52,211,153,.55)'; ctx.lineWidth=2;
+    ctx.beginPath(); ctx.arc(p.x,p.y,16,0,Math.PI*2); ctx.stroke();
+    ctx.font='12px ui-sans-serif,system-ui';
+    ctx.fillStyle='rgba(230,237,243,.9)';
+    ctx.fillText(src.name || "Wasserhahn", p.x+10, p.y-18);
+    ctx.restore();
+  }
+
+  // Render
+  function render(){
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+
+    // Background image
+    if(state.bg.img){
+      const p0=worldToScreen({x:0,y:0});
+      ctx.drawImage(state.bg.img, p0.x, p0.y, state.bg.w*view.s, state.bg.h*view.s);
+    }
+
+    // Scale points + line
+    if(state.scale.a) drawPoint(state.scale.a,'rgba(251,191,36,.95)',6);
+    if(state.scale.b) drawPoint(state.scale.b,'rgba(251,191,36,.95)',6);
+    if(state.scale.a && state.scale.b){
+      drawLine(state.scale.a,state.scale.b,'rgba(251,191,36,.9)',2);
+      const dpx=dist(state.scale.a,state.scale.b);
+      const txt = state.scale.pxPerMeter ? `${(dpx/state.scale.pxPerMeter).toFixed(2)} m` : `${dpx.toFixed(0)} px`;
+      drawLabel({x:(state.scale.a.x+state.scale.b.x)/2,y:(state.scale.a.y+state.scale.b.y)/2}, txt, 'rgba(251,191,36,.95)');
+    }
+
+    // Source
+    if(state.source) drawSource(state.source);
+
+    // selection highlight
+    if(state.selection?.kind==='source' && state.source){
+      drawPoint({x:state.source.x,y:state.source.y},'rgba(52,211,153,1)',10);
+    }
+  }
+
   // Init
-  fitCanvas();
-  setTool("pan");
-  renderUI();
-  render();
+  function init(){
+    setTool('pan');
+    fitCanvas();
+    renderSteps();
+    updateModeHint();
+    showProps();
+    render();
+  }
+  init();
 })();
 </script>
 </body>
