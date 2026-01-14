@@ -58,6 +58,16 @@
 <div class="wrap">
   <!-- LEFT -->
   <div class="panel">
+
+    <!-- ✅ BLEIBT GANZ OBEN -->
+    <h3>Bild (Plan) hochladen</h3>
+    <div class="row">
+      <input id="fileBg" type="file" accept="image/*" />
+    </div>
+    <div class="hint">Bild wird proportional angezeigt (kein Verzerren).</div>
+
+    <div class="sep"></div>
+
     <h3>Schritt für Schritt</h3>
     <div class="hint">👉 Klick auf einen Schritt = Tool wird gewählt.</div>
     <div id="steps"></div>
@@ -71,14 +81,6 @@
       <button id="toolScale" class="warn">📏 Maßstab</button>
       <button id="toolSource" class="ok">🚰 Wasserquelle</button>
     </div>
-
-    <div class="sep"></div>
-
-    <h3>Bild (Plan) hochladen</h3>
-    <div class="row">
-      <input id="fileBg" type="file" accept="image/*" />
-    </div>
-    <div class="hint">Bild wird proportional angezeigt (kein Verzerren).</div>
 
     <div class="sep"></div>
 
@@ -158,7 +160,7 @@
   };
 
   // Tools
-  let tool = 'pan'; // pan | select | scale | source
+  let tool = 'pan';
   let mouse = { down:false, last:null, x:0, y:0 };
   let spacePan = false;
 
@@ -239,7 +241,8 @@
       state.bg.img=img; state.bg.w=img.width; state.bg.h=img.height; state.bg.url=url;
       fitImageToView();
       renderSteps();
-      setTool('scale'); // direkt Maßstab
+      // ✅ KEIN Auto-Tool-Switch mehr
+      // setTool('scale');  // entfernt
       render();
     };
     img.src=url;
@@ -266,7 +269,8 @@
     if(meters>0 && dpx>0){
       state.scale.pxPerMeter=dpx/meters;
       renderSteps();
-      setTool('source'); // nächster Schritt
+      // optional: nach Anwenden zur Quelle springen (das ist meistens ok)
+      setTool('source');
       render();
     }
   });
@@ -316,10 +320,8 @@
   window.addEventListener('keydown', (e)=>{
     if(e.code==='Space') spacePan=true;
     if(e.code==='Escape'){
-      // nur Maßstab-Punkte resetten
       state.scale.a=null;
       state.scale.b=null;
-      // pxPerMeter bleibt (wenn schon angewendet)
       showProps();
       render();
     }
@@ -345,14 +347,13 @@
     if(tool==='scale'){
       if(!state.scale.a) state.scale.a=w;
       else if(!state.scale.b) state.scale.b=w;
-      else { state.scale.a=w; state.scale.b=null; } // A neu
+      else { state.scale.a=w; state.scale.b=null; }
       showProps();
       render();
       return;
     }
 
     if(tool==='source'){
-      // Quelle setzen (ersetzt alte)
       state.source = { x:w.x, y:w.y, name: state.source?.name || "Wasserhahn" };
       state.selection = {kind:'source'};
       renderSteps();
@@ -366,7 +367,7 @@
     mouse.x=e.offsetX; mouse.y=e.offsetY;
     const w=screenToWorld({x:e.offsetX,y:e.offsetY});
 
-    if(!mouse.down){ return; }
+    if(!mouse.down) return;
 
     if(tool==='pan' || spacePan){
       const dx=(e.offsetX-mouse.last.x)/view.s;
@@ -376,16 +377,13 @@
       render(); return;
     }
 
-    // Drag Quelle
     if(tool==='select' && state.selection?.kind==='source' && state.source){
       state.source.x=w.x; state.source.y=w.y;
       render();
     }
   });
 
-  canvas.addEventListener('mouseup', ()=>{
-    mouse.down=false; mouse.last=null;
-  });
+  canvas.addEventListener('mouseup', ()=>{ mouse.down=false; mouse.last=null; });
 
   canvas.addEventListener('wheel', (e)=>{
     e.preventDefault();
@@ -442,13 +440,11 @@
   function render(){
     ctx.clearRect(0,0,canvas.width,canvas.height);
 
-    // Background image
     if(state.bg.img){
       const p0=worldToScreen({x:0,y:0});
       ctx.drawImage(state.bg.img, p0.x, p0.y, state.bg.w*view.s, state.bg.h*view.s);
     }
 
-    // Scale points + line
     if(state.scale.a) drawPoint(state.scale.a,'rgba(251,191,36,.95)',6);
     if(state.scale.b) drawPoint(state.scale.b,'rgba(251,191,36,.95)',6);
     if(state.scale.a && state.scale.b){
@@ -458,16 +454,13 @@
       drawLabel({x:(state.scale.a.x+state.scale.b.x)/2,y:(state.scale.a.y+state.scale.b.y)/2}, txt, 'rgba(251,191,36,.95)');
     }
 
-    // Source
     if(state.source) drawSource(state.source);
 
-    // selection highlight
     if(state.selection?.kind==='source' && state.source){
       drawPoint({x:state.source.x,y:state.source.y},'rgba(52,211,153,1)',10);
     }
   }
 
-  // Init
   function init(){
     setTool('pan');
     fitCanvas();
