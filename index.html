@@ -3,38 +3,43 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>PVC WELT Planer – Step 1 (Bild + Pan/Zoom)</title>
+  <title>PVC WELT Planer – Step 2 (Bild + Maßstab)</title>
   <style>
     :root{
       --bg:#0b0f14; --panel:#121926; --muted:#9aa4b2; --text:#e6edf3;
-      --accent:#4cc9f0;
+      --accent:#4cc9f0; --warn:#fbbf24; --ok:#34d399;
     }
     *{box-sizing:border-box;}
     body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;background:var(--bg);color:var(--text);}
     header{padding:12px 16px;border-bottom:1px solid rgba(255,255,255,.08);display:flex;align-items:center;justify-content:space-between;gap:12px;}
     .title{font-weight:900;}
     .sub{color:var(--muted);font-size:12px;margin-top:2px;}
-    .wrap{display:grid;grid-template-columns:340px 1fr;gap:12px;padding:12px;height:calc(100vh - 58px);}
+    .wrap{display:grid;grid-template-columns:360px 1fr;gap:12px;padding:12px;height:calc(100vh - 58px);}
     .panel{background:var(--panel);border:1px solid rgba(255,255,255,.08);border-radius:14px;padding:12px;overflow:auto;}
     canvas{width:100%;height:100%;background:#070a10;border-radius:14px;border:1px solid rgba(255,255,255,.08);}
     h3{margin:0 0 10px;font-size:14px;color:#dbe7ff;}
     .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:10px 0;}
     input,button{background:#0f1520;color:var(--text);border:1px solid rgba(255,255,255,.12);border-radius:10px;padding:8px 10px;font-size:13px;}
+    input[type="number"]{width:120px;}
     button{cursor:pointer;}
     button.primary{border-color:rgba(76,201,240,.35);background:linear-gradient(135deg, rgba(76,201,240,.25), rgba(76,201,240,.08));}
+    button.warn{border-color:rgba(251,191,36,.35);background:linear-gradient(135deg, rgba(251,191,36,.25), rgba(251,191,36,.08));}
+    button.ok{border-color:rgba(52,211,153,.35);background:linear-gradient(135deg, rgba(52,211,153,.25), rgba(52,211,153,.08));}
     .hint{font-size:12px;color:var(--muted);line-height:1.35;}
     .mono{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;}
     .sep{height:1px;background:rgba(255,255,255,.08);margin:12px 0;}
+    .pill{display:inline-flex;gap:8px;align-items:center;border:1px solid rgba(255,255,255,.12);border-radius:999px;padding:4px 10px;font-size:12px;color:var(--muted);}
   </style>
 </head>
 <body>
 <header>
   <div>
-    <div class="title">PVC WELT Planer <span class="mono">Step 1</span></div>
-    <div class="sub">Bild hochladen • Fit • Pan/Zoom (Space = Pan)</div>
+    <div class="title">PVC WELT Planer <span class="mono">Step 2</span></div>
+    <div class="sub">Bild hochladen • Fit • Pan/Zoom • 📏 Maßstab (2 Punkte)</div>
   </div>
   <div class="row">
-    <span class="hint">Status: <span id="status">kein Bild</span></span>
+    <span class="pill">Tool: <b id="toolName" style="color:rgba(230,237,243,.95);">Pan</b></span>
+    <span class="pill">Status: <span id="status">kein Bild</span></span>
   </div>
 </header>
 
@@ -45,7 +50,30 @@
       <input id="fileBg" type="file" accept="image/*" />
       <button id="btnFit" class="primary">Bild: Fit</button>
     </div>
-    <div class="hint">Tipp: <span class="mono">Mausrad</span> zoom • <span class="mono">Space</span> gedrückt halten = Pan • Ziehen = Pan</div>
+    <div class="hint">Mausrad zoom • Ziehen = Pan</div>
+
+    <div class="sep"></div>
+
+    <h3>2) Maßstab setzen</h3>
+    <div class="row">
+      <button id="toolPan" class="primary">🖐️ Pan</button>
+      <button id="toolScale" class="warn">📏 Maßstab</button>
+    </div>
+
+    <div class="hint" id="scaleHint">
+      Wähle <b>📏 Maßstab</b> → klicke Punkt A und Punkt B → Meter eingeben → Anwenden.
+    </div>
+
+    <div class="row">
+      <label class="hint">Meter zwischen A & B</label>
+      <input id="scaleMeters" type="number" min="0.1" step="0.1" value="5" />
+      <button id="btnApplyScale" class="ok" disabled>Anwenden</button>
+    </div>
+
+    <div class="hint">
+      pxPerMeter: <span id="pxPerM" class="mono">–</span><br>
+      Messung: <span id="measureInfo" class="mono">–</span>
+    </div>
 
     <div class="sep"></div>
 
@@ -54,6 +82,9 @@
       Zoom: <span id="kZoom" class="mono">1.00</span><br>
       Offset: <span id="kOff" class="mono">0,0</span>
     </div>
+
+    <div class="sep"></div>
+    <button id="btnResetScale" class="warn" style="width:100%;">Maßstab zurücksetzen</button>
   </div>
 
   <div class="panel" style="padding:10px;">
@@ -68,18 +99,29 @@
   const el = (id) => document.getElementById(id);
 
   // View (Weltkoordinaten = Bildpixel)
-  let view = { x: 0, y: 0, s: 1 }; // x/y = world offset, s = zoom
+  let view = { x: 0, y: 0, s: 1 };
   let mouse = { down:false, last:null };
-  let spacePan = false;
 
   const state = {
-    bg: { img:null, w:0, h:0, url:null }
+    bg: { img:null, w:0, h:0, url:null },
+    tool: "pan", // "pan" | "scale"
+    scale: { a:null, b:null, pxPerMeter:null }
   };
 
   function clamp(v,a,b){ return Math.max(a, Math.min(b, v)); }
+  function dist(a,b){ return Math.hypot(a.x-b.x, a.y-b.y); }
 
   function worldToScreen(p){ return { x:(p.x + view.x) * view.s, y:(p.y + view.y) * view.s }; }
   function screenToWorld(p){ return { x:p.x / view.s - view.x, y:p.y / view.s - view.y }; }
+
+  function setTool(t){
+    state.tool = t;
+    el("toolName").textContent = (t==="pan" ? "Pan" : "Maßstab");
+    el("toolPan").classList.toggle("primary", t==="pan");
+    el("toolScale").classList.toggle("warn", t==="scale");
+    renderUI();
+    render();
+  }
 
   function fitCanvas(){
     const rect = canvas.getBoundingClientRect();
@@ -99,18 +141,81 @@
     const sy = (vh * 0.92) / state.bg.h;
     view.s = clamp(Math.min(sx, sy), 0.15, 10);
 
-    // Bild zentrieren
     const cx = state.bg.w / 2;
     const cy = state.bg.h / 2;
     view.x = (vw/(2*view.s)) - cx;
     view.y = (vh/(2*view.s)) - cy;
   }
 
+  function renderUI(){
+    // apply button enabled only if two points exist
+    const ready = !!(state.scale.a && state.scale.b);
+    el("btnApplyScale").disabled = !ready;
+
+    // infos
+    if(state.scale.pxPerMeter){
+      el("pxPerM").textContent = state.scale.pxPerMeter.toFixed(3);
+    } else {
+      el("pxPerM").textContent = "–";
+    }
+
+    if(state.scale.a && state.scale.b){
+      const dpx = dist(state.scale.a, state.scale.b);
+      const meters = parseFloat(el("scaleMeters").value || "1");
+      const mText = state.scale.pxPerMeter ? (dpx/state.scale.pxPerMeter).toFixed(2) : "—";
+      el("measureInfo").textContent = `${dpx.toFixed(1)} px  |  ${mText} m`;
+      el("scaleHint").innerHTML = `Punkt A und B gesetzt ✅ → Meter eingeben → <b>Anwenden</b>`;
+    } else if(state.scale.a && !state.scale.b){
+      el("measureInfo").textContent = "Punkt A gesetzt – jetzt Punkt B klicken";
+      el("scaleHint").innerHTML = `Punkt A gesetzt ✅ → jetzt Punkt B klicken`;
+    } else {
+      el("measureInfo").textContent = "–";
+      el("scaleHint").innerHTML = `Wähle <b>📏 Maßstab</b> → klicke Punkt A und Punkt B → Meter eingeben → Anwenden.`;
+    }
+  }
+
+  function drawPoint(p, color, r=6){
+    const s = worldToScreen(p);
+    ctx.save();
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.arc(s.x, s.y, r, 0, Math.PI*2);
+    ctx.fill();
+    ctx.restore();
+  }
+
+  function drawLine(a,b,color,lw){
+    const p1 = worldToScreen(a);
+    const p2 = worldToScreen(b);
+    ctx.save();
+    ctx.strokeStyle = color;
+    ctx.lineWidth = lw;
+    ctx.beginPath();
+    ctx.moveTo(p1.x, p1.y);
+    ctx.lineTo(p2.x, p2.y);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  function drawLabel(mid, text){
+    const s = worldToScreen(mid);
+    ctx.save();
+    ctx.font = "12px system-ui";
+    const pad=6;
+    const w = ctx.measureText(text).width;
+    ctx.fillStyle = "rgba(0,0,0,.55)";
+    ctx.fillRect(s.x - w/2 - pad, s.y - 20, w + pad*2, 18);
+    ctx.fillStyle = "rgba(251,191,36,.95)";
+    ctx.textAlign="center"; ctx.textBaseline="middle";
+    ctx.fillText(text, s.x, s.y - 11);
+    ctx.restore();
+  }
+
   function render(){
     const rect = canvas.getBoundingClientRect();
     ctx.clearRect(0,0,rect.width,rect.height);
 
-    // Bild zeichnen
+    // Bild
     if(state.bg.img){
       const p0 = worldToScreen({x:0,y:0});
       ctx.drawImage(state.bg.img, p0.x, p0.y, state.bg.w*view.s, state.bg.h*view.s);
@@ -122,7 +227,19 @@
       ctx.restore();
     }
 
-    // kleine HUD Werte
+    // Maßstab overlay
+    if(state.scale.a) drawPoint(state.scale.a, "rgba(251,191,36,.95)", 6);
+    if(state.scale.b) drawPoint(state.scale.b, "rgba(251,191,36,.95)", 6);
+    if(state.scale.a && state.scale.b){
+      drawLine(state.scale.a, state.scale.b, "rgba(251,191,36,.9)", 2);
+      const dpx = dist(state.scale.a, state.scale.b);
+      const txt = state.scale.pxPerMeter
+        ? `${(dpx/state.scale.pxPerMeter).toFixed(2)} m`
+        : `${dpx.toFixed(0)} px`;
+      drawLabel({x:(state.scale.a.x+state.scale.b.x)/2, y:(state.scale.a.y+state.scale.b.y)/2}, txt);
+    }
+
+    // HUD
     el("kZoom").textContent = view.s.toFixed(2);
     el("kOff").textContent = `${view.x.toFixed(1)}, ${view.y.toFixed(1)}`;
   }
@@ -131,7 +248,6 @@
   el("fileBg").addEventListener("change", (e) => {
     const file = e.target.files?.[0];
     if(!file) return;
-
     const url = URL.createObjectURL(file);
     const img = new Image();
     img.onload = () => {
@@ -139,32 +255,71 @@
       state.bg.w = img.width;
       state.bg.h = img.height;
       state.bg.url = url;
-
       el("status").textContent = `Bild geladen (${img.width}×${img.height})`;
       fitImageToView();
+      renderUI();
       render();
     };
     img.src = url;
   });
 
-  el("btnFit").addEventListener("click", () => {
-    fitImageToView();
+  el("btnFit").addEventListener("click", () => { fitImageToView(); render(); });
+
+  // Tool buttons
+  el("toolPan").addEventListener("click", () => setTool("pan"));
+  el("toolScale").addEventListener("click", () => setTool("scale"));
+
+  // Apply scale
+  el("btnApplyScale").addEventListener("click", () => {
+    if(!(state.scale.a && state.scale.b)) return;
+    const meters = parseFloat(el("scaleMeters").value || "1");
+    const dpx = dist(state.scale.a, state.scale.b);
+    if(meters > 0 && dpx > 0){
+      state.scale.pxPerMeter = dpx / meters;
+      renderUI();
+      render();
+    }
+  });
+
+  // Reset scale
+  el("btnResetScale").addEventListener("click", () => {
+    state.scale.a = null;
+    state.scale.b = null;
+    state.scale.pxPerMeter = null;
+    renderUI();
     render();
   });
 
-  // Pan + Zoom
-  window.addEventListener("keydown", (e) => { if(e.code === "Space") spacePan = true; });
-  window.addEventListener("keyup",   (e) => { if(e.code === "Space") spacePan = false; });
-
+  // Mouse
   canvas.addEventListener("mousedown", (e) => {
     mouse.down = true;
     mouse.last = { x:e.offsetX, y:e.offsetY };
+
+    const w = screenToWorld({x:e.offsetX, y:e.offsetY});
+
+    if(state.tool === "scale"){
+      // 2-Punkt Logik
+      if(!state.scale.a){
+        state.scale.a = w;
+      } else if(!state.scale.b){
+        state.scale.b = w;
+      } else {
+        // dritter Klick startet neu
+        state.scale.a = w;
+        state.scale.b = null;
+        state.scale.pxPerMeter = null;
+      }
+      renderUI();
+      render();
+    }
   });
+
   window.addEventListener("mouseup", () => { mouse.down = false; mouse.last = null; });
 
   canvas.addEventListener("mousemove", (e) => {
     if(!mouse.down) return;
-    // Ziehen = Pan (immer) + Space ist nur als Hinweis (wie “Pro-Tool”)
+    if(state.tool !== "pan") return;
+
     const dx = (e.offsetX - mouse.last.x) / view.s;
     const dy = (e.offsetY - mouse.last.y) / view.s;
     view.x += dx;
@@ -182,7 +337,6 @@
     view.s = clamp(view.s * zoom, 0.15, 10);
     const after = screenToWorld({x:mx, y:my});
 
-    // zoom um Mausposition herum
     view.x += (after.x - before.x);
     view.y += (after.y - before.y);
 
@@ -191,6 +345,8 @@
 
   // Init
   fitCanvas();
+  setTool("pan");
+  renderUI();
   render();
 })();
 </script>
