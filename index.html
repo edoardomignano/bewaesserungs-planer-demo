@@ -22,12 +22,10 @@
     label{font-size:12px;color:var(--muted);}
     input,button{background:#0f1520;color:var(--text);border:1px solid rgba(255,255,255,.12);border-radius:10px;padding:8px 10px;font-size:13px;}
     input[type="number"]{width:120px;}
-    input[type="text"]{width:100%;}
     button{cursor:pointer;}
     button.primary{background:linear-gradient(135deg, rgba(76,201,240,.25), rgba(76,201,240,.08));border-color:rgba(76,201,240,.35);}
     button.warn{background:linear-gradient(135deg, rgba(251,191,36,.25), rgba(251,191,36,.08));border-color:rgba(251,191,36,.35);}
     button.ok{background:linear-gradient(135deg, rgba(52,211,153,.25), rgba(52,211,153,.08));border-color:rgba(52,211,153,.35);}
-    .toolgrid{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
     .hint{font-size:12px;color:var(--muted);line-height:1.35;}
     .sep{height:1px;background:rgba(255,255,255,.08);margin:12px 0;}
     .mono{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;}
@@ -48,7 +46,7 @@
 <header>
   <div>
     <div class="title">PVC WELT Bewässerungsplaner <span class="mono">Step 1–3</span></div>
-    <div class="sub">1) Bild • 2) Maßstab • 3) Wasserquelle</div>
+    <div class="sub">Bild • Maßstab • Wasserquelle</div>
   </div>
   <div class="row">
     <button class="primary" id="btnFitView">Bild: Fit</button>
@@ -59,7 +57,7 @@
   <!-- LEFT -->
   <div class="panel">
 
-    <!-- ✅ BLEIBT GANZ OBEN -->
+    <!-- ✅ NUR EINMAL -->
     <h3>Bild (Plan) hochladen</h3>
     <div class="row">
       <input id="fileBg" type="file" accept="image/*" />
@@ -69,18 +67,8 @@
     <div class="sep"></div>
 
     <h3>Schritt für Schritt</h3>
-    <div class="hint">👉 Klick auf einen Schritt = Tool wird gewählt.</div>
+    <div class="hint">👉 Klick auf einen Schritt aktiviert die Funktion.</div>
     <div id="steps"></div>
-
-    <div class="sep"></div>
-
-    <h3>Tools</h3>
-    <div class="toolgrid">
-      <button id="toolPan" class="primary">🖐️ Pan/Zoom</button>
-      <button id="toolSelect">🧲 Auswahl</button>
-      <button id="toolScale" class="warn">📏 Maßstab</button>
-      <button id="toolSource" class="ok">🚰 Wasserquelle</button>
-    </div>
 
     <div class="sep"></div>
 
@@ -100,7 +88,7 @@
   <!-- RIGHT -->
   <div class="panel">
     <h3>Eigenschaften</h3>
-    <div class="hint" id="modeHint">Wähle einen Schritt oder Tool.</div>
+    <div class="hint" id="modeHint">Wähle einen Schritt.</div>
 
     <div class="sep"></div>
 
@@ -113,13 +101,12 @@
         <input id="scaleMeters" type="number" min="0.1" step="0.1" value="5" />
         <button id="btnApplyScale" class="primary">Anwenden</button>
       </div>
-      <div class="hint">📏 Tool: Punkt A klicken, Punkt B klicken, dann „Anwenden“.</div>
+      <div class="hint">Schritt „Maßstab“: Punkt A klicken → Punkt B klicken → Anwenden.</div>
     </div>
 
     <div id="propsSource" style="display:none;">
       <h3>Wasserquelle</h3>
       <div class="row"><label>Name</label><input id="srcName" type="text" value="Wasserhahn" /></div>
-      <div class="hint">🧲 Auswahl-Tool: Quelle anklicken & ziehen.</div>
       <div class="row">
         <button id="btnDeleteSource" class="warn">Quelle löschen</button>
       </div>
@@ -156,30 +143,27 @@
     bg: { img:null, w:0, h:0, url:null },
     scale: { pxPerMeter:null, a:null, b:null },
     source: null, // {x,y,name}
-    selection: null, // {kind:'source'}
   };
 
-  // Tools
-  let tool = 'pan';
+  // “Hidden” mode (keine Tools UI)
+  let mode = 'pan'; // pan | scale | source
   let mouse = { down:false, last:null, x:0, y:0 };
   let spacePan = false;
 
-  // Steps UI
   function stepStatus(){
     return {
-      s1: !!state.bg.img,
       s2: !!state.scale.pxPerMeter,
       s3: !!state.source,
     };
   }
 
+  // ✅ KEIN Schritt “Bild hochladen” (weil Upload oben)
   function renderSteps(){
     const st=stepStatus();
     const steps = [
-      { title:'1) Bild hochladen', ok:st.s1, text:'Planbild hochladen und „Bild: Fit“ drücken.', action:()=>el('fileBg').click() },
-      { title:'2) Maßstab setzen', ok:st.s2, text:'📏 Tool → 2 Punkte klicken → Meter → Anwenden.', action:()=>setTool('scale') },
-      { title:'3) Wasserquelle setzen', ok:st.s3, text:'🚰 Tool → Klick setzt die Quelle (neuer Klick ersetzt).', action:()=>setTool('source') },
-      { title:'(Optional) Quelle verschieben', ok:true, text:'🧲 Auswahl → Quelle anklicken & ziehen.', action:()=>setTool('select') },
+      { title:'2) Maßstab setzen', ok:st.s2, text:'Punkt A klicken → Punkt B klicken → Meter → Anwenden.', action:()=>setMode('scale') },
+      { title:'3) Wasserquelle setzen', ok:st.s3, text:'Klick setzt die Quelle (neuer Klick ersetzt).', action:()=>setMode('source') },
+      { title:'Pan/Zoom', ok:true, text:'Zum verschieben/zoomen.', action:()=>setMode('pan') },
     ];
 
     const wrap=el('steps');
@@ -199,24 +183,8 @@
     }
   }
 
-  // Tool buttons
-  const toolButtons = {
-    pan: el('toolPan'),
-    select: el('toolSelect'),
-    scale: el('toolScale'),
-    source: el('toolSource'),
-  };
-
-  function setTool(t){
-    tool=t;
-    Object.entries(toolButtons).forEach(([k,btn])=>{
-      btn.classList.remove('primary','warn','ok');
-      if(k===t){
-        if(k==='scale') btn.classList.add('warn');
-        else if(k==='source') btn.classList.add('ok');
-        else btn.classList.add('primary');
-      }
-    });
+  function setMode(m){
+    mode = m;
     updateModeHint();
     showProps();
     render();
@@ -224,12 +192,11 @@
 
   function updateModeHint(){
     const hints={
-      pan:"Pan/Zoom: ziehen oder Space halten. Mausrad zoom.",
-      select:"Auswahl: Quelle anklicken und ziehen.",
-      scale:"Maßstab: Punkt A klicken, Punkt B klicken, Meter → Anwenden.",
-      source:"Wasserquelle: Klick setzt die Quelle (ersetzt alte).",
+      pan:"Pan/Zoom aktiv (ziehen / Space halten / Mausrad).",
+      scale:"Maßstab aktiv: Punkt A klicken, Punkt B klicken.",
+      source:"Wasserquelle aktiv: Klick setzt die Quelle.",
     };
-    el('modeHint').textContent=hints[tool]||"";
+    el('modeHint').textContent = hints[mode] || "";
   }
 
   // Background upload
@@ -241,8 +208,6 @@
       state.bg.img=img; state.bg.w=img.width; state.bg.h=img.height; state.bg.url=url;
       fitImageToView();
       renderSteps();
-      // ✅ KEIN Auto-Tool-Switch mehr
-      // setTool('scale');  // entfernt
       render();
     };
     img.src=url;
@@ -269,8 +234,8 @@
     if(meters>0 && dpx>0){
       state.scale.pxPerMeter=dpx/meters;
       renderSteps();
-      // optional: nach Anwenden zur Quelle springen (das ist meistens ok)
-      setTool('source');
+      // danach sinnvoll: Quelle setzen
+      setMode('source');
       render();
     }
   });
@@ -283,45 +248,32 @@
   });
   el('btnDeleteSource').addEventListener('click', ()=>{
     state.source=null;
-    state.selection=null;
     renderSteps();
     showProps();
     render();
   });
 
   function showProps(){
-    const sel=state.selection;
     el('propsNone').style.display = 'block';
     el('propsScale').style.display = 'none';
     el('propsSource').style.display = 'none';
 
-    if(tool==='scale' && state.scale.a && state.scale.b){
+    if(mode==='scale' && state.scale.a && state.scale.b){
       el('propsNone').style.display='none';
       el('propsScale').style.display='block';
     }
-    if(sel?.kind==='source' && state.source){
+    if(mode==='source' && state.source){
       el('propsNone').style.display='none';
       el('propsSource').style.display='block';
       el('srcName').value = state.source.name || "Wasserhahn";
     }
   }
 
-  // Hit test (nur Quelle)
-  function hitTest(w){
-    if(state.source){
-      if(Math.hypot(w.x-state.source.x, w.y-state.source.y) < 14/view.s){
-        return {kind:'source'};
-      }
-    }
-    return null;
-  }
-
   // Keyboard
   window.addEventListener('keydown', (e)=>{
     if(e.code==='Space') spacePan=true;
     if(e.code==='Escape'){
-      state.scale.a=null;
-      state.scale.b=null;
+      state.scale.a=null; state.scale.b=null;
       showProps();
       render();
     }
@@ -334,28 +286,19 @@
     mouse.last={x:e.offsetX,y:e.offsetY};
     const w=screenToWorld({x:e.offsetX,y:e.offsetY});
 
-    if(spacePan) return;
-    if(tool==='pan') return;
+    if(spacePan || mode==='pan') return;
 
-    if(tool==='select'){
-      state.selection = hitTest(w);
-      showProps();
-      render();
-      return;
-    }
-
-    if(tool==='scale'){
+    if(mode==='scale'){
       if(!state.scale.a) state.scale.a=w;
       else if(!state.scale.b) state.scale.b=w;
-      else { state.scale.a=w; state.scale.b=null; }
+      else { state.scale.a=w; state.scale.b=null; state.scale.pxPerMeter=null; }
       showProps();
       render();
       return;
     }
 
-    if(tool==='source'){
+    if(mode==='source'){
       state.source = { x:w.x, y:w.y, name: state.source?.name || "Wasserhahn" };
-      state.selection = {kind:'source'};
       renderSteps();
       showProps();
       render();
@@ -365,21 +308,15 @@
 
   canvas.addEventListener('mousemove', (e)=>{
     mouse.x=e.offsetX; mouse.y=e.offsetY;
-    const w=screenToWorld({x:e.offsetX,y:e.offsetY});
 
     if(!mouse.down) return;
 
-    if(tool==='pan' || spacePan){
+    if(mode==='pan' || spacePan){
       const dx=(e.offsetX-mouse.last.x)/view.s;
       const dy=(e.offsetY-mouse.last.y)/view.s;
       view.x+=dx; view.y+=dy;
       mouse.last={x:e.offsetX,y:e.offsetY};
       render(); return;
-    }
-
-    if(tool==='select' && state.selection?.kind==='source' && state.source){
-      state.source.x=w.x; state.source.y=w.y;
-      render();
     }
   });
 
@@ -422,7 +359,6 @@
     ctx.fillText(text, s.x, s.y-9);
     ctx.restore();
   }
-
   function drawSource(src){
     const p=worldToScreen({x:src.x,y:src.y});
     ctx.save();
@@ -445,6 +381,7 @@
       ctx.drawImage(state.bg.img, p0.x, p0.y, state.bg.w*view.s, state.bg.h*view.s);
     }
 
+    // scale points
     if(state.scale.a) drawPoint(state.scale.a,'rgba(251,191,36,.95)',6);
     if(state.scale.b) drawPoint(state.scale.b,'rgba(251,191,36,.95)',6);
     if(state.scale.a && state.scale.b){
@@ -455,14 +392,10 @@
     }
 
     if(state.source) drawSource(state.source);
-
-    if(state.selection?.kind==='source' && state.source){
-      drawPoint({x:state.source.x,y:state.source.y},'rgba(52,211,153,1)',10);
-    }
   }
 
   function init(){
-    setTool('pan');
+    setMode('pan');
     fitCanvas();
     renderSteps();
     updateModeHint();
