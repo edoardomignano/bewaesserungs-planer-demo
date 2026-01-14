@@ -3,80 +3,100 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>PVC WELT Bewässerungsplaner – Step 1–3 (Bild • Maßstab • Wasserquelle)</title>
+  <title>PVC WELT Bewässerungsplaner Demo v0.6</title>
   <style>
     :root{
       --bg:#0b0f14; --panel:#121926; --muted:#9aa4b2; --text:#e6edf3;
-      --accent:#4cc9f0; --warn:#fbbf24; --ok:#34d399;
+      --accent:#4cc9f0; --warn:#fbbf24; --ok:#34d399; --vio:#a78bfa; --line:rgba(255,255,255,.08);
     }
     *{box-sizing:border-box;}
     body{margin:0;font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Arial;background:var(--bg);color:var(--text);}
-    header{padding:12px 16px;border-bottom:1px solid rgba(255,255,255,.08);display:flex;align-items:center;justify-content:space-between;gap:12px;}
+    header{padding:12px 16px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;gap:12px;}
     .title{font-weight:950;letter-spacing:.2px;}
     .sub{color:var(--muted);font-size:12px;margin-top:2px;}
     .wrap{display:grid;grid-template-columns:360px 1fr 340px;gap:12px;padding:12px;height:calc(100vh - 54px);}
-    .panel{background:var(--panel);border:1px solid rgba(255,255,255,.08);border-radius:14px;padding:12px;overflow:auto;}
-    canvas{width:100%;height:100%;background:#070a10;border-radius:14px;border:1px solid rgba(255,255,255,.08);}
+    .panel{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:12px;overflow:auto;}
+    canvas{width:100%;height:100%;background:#070a10;border-radius:14px;border:1px solid var(--line);}
     h3{margin:0 0 10px;font-size:14px;color:#dbe7ff;}
     .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:8px 0;}
     label{font-size:12px;color:var(--muted);}
-    input,button{background:#0f1520;color:var(--text);border:1px solid rgba(255,255,255,.12);border-radius:10px;padding:8px 10px;font-size:13px;}
-    input[type="number"]{width:120px;}
+    input,select,button{background:#0f1520;color:var(--text);border:1px solid rgba(255,255,255,.12);border-radius:10px;padding:8px 10px;font-size:13px;}
+    input[type="number"]{width:140px;}
+    input[type="text"]{width:100%;}
     button{cursor:pointer;}
     button.primary{background:linear-gradient(135deg, rgba(76,201,240,.25), rgba(76,201,240,.08));border-color:rgba(76,201,240,.35);}
     button.warn{background:linear-gradient(135deg, rgba(251,191,36,.25), rgba(251,191,36,.08));border-color:rgba(251,191,36,.35);}
     button.ok{background:linear-gradient(135deg, rgba(52,211,153,.25), rgba(52,211,153,.08));border-color:rgba(52,211,153,.35);}
+    button.vio{background:linear-gradient(135deg, rgba(167,139,250,.25), rgba(167,139,250,.08));border-color:rgba(167,139,250,.35);}
+    .toolgrid{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
     .hint{font-size:12px;color:var(--muted);line-height:1.35;}
-    .sep{height:1px;background:rgba(255,255,255,.08);margin:12px 0;}
+    .sep{height:1px;background:var(--line);margin:12px 0;}
     .mono{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;}
     .badge{font-size:11px;padding:3px 8px;border-radius:999px;border:1px solid rgba(255,255,255,.12);color:var(--muted);}
-    .badge.ok{border-color:rgba(52,211,153,.35);color:rgba(52,211,153,.95);}
     .badge.open{border-color:rgba(251,191,36,.35);color:rgba(251,191,36,.95);}
+    .badge.ok{border-color:rgba(52,211,153,.35);color:rgba(52,211,153,.95);}
     .step{
       display:flex;align-items:flex-start;justify-content:space-between;gap:10px;
-      padding:10px;border:1px solid rgba(255,255,255,.08);border-radius:12px;margin:8px 0;
-      background:rgba(0,0,0,.18); cursor:pointer; user-select:none;
+      padding:10px;border:1px solid var(--line);border-radius:12px;margin:8px 0;
+      background:rgba(0,0,0,.18);
+      cursor:pointer;
+      user-select:none;
     }
     .step:hover{border-color:rgba(76,201,240,.25);}
     .step .sTitle{font-weight:900;font-size:13px;}
     .step .sText{font-size:12px;color:var(--muted);margin-top:4px;line-height:1.3;}
+    .kpi{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px;}
+    .card{border:1px solid var(--line);border-radius:12px;padding:10px;background:rgba(0,0,0,.18);}
+    .card .k{color:var(--muted);font-size:12px;}
+    .card .v{font-size:18px;font-weight:950;margin-top:4px;}
   </style>
 </head>
 <body>
 <header>
   <div>
-    <div class="title">PVC WELT Bewässerungsplaner <span class="mono">Step 1–3</span></div>
-    <div class="sub">Bild • Maßstab • Wasserquelle</div>
+    <div class="title">PVC WELT Bewässerungsplaner Demo <span class="mono">v0.6</span></div>
+    <div class="sub">Punkt 1–4: Bild • Maßstab • Wasserquelle • Zu bewässernde Fläche</div>
   </div>
   <div class="row">
-    <button class="primary" id="btnFitView">Bild: Fit</button>
+    <button class="primary" id="btnExport">Projekt export (JSON)</button>
+    <button id="btnImport">Projekt import</button>
+    <input id="fileImport" type="file" accept="application/json" hidden />
   </div>
 </header>
 
 <div class="wrap">
   <!-- LEFT -->
   <div class="panel">
-
-    <!-- ✅ NUR EINMAL -->
-    <h3>Bild (Plan) hochladen</h3>
-    <div class="row">
-      <input id="fileBg" type="file" accept="image/*" />
-    </div>
-    <div class="hint">Bild wird proportional angezeigt (kein Verzerren).</div>
+    <h3>Schritt für Schritt (kinderleicht)</h3>
+    <div class="hint">👉 Klick auf einen Schritt = Tool wird automatisch gewählt.</div>
+    <div id="steps"></div>
 
     <div class="sep"></div>
 
-    <h3>Schritt für Schritt</h3>
-    <div class="hint">👉 Klick auf einen Schritt aktiviert die Funktion.</div>
-    <div id="steps"></div>
+    <h3>Tools</h3>
+    <div class="toolgrid">
+      <button id="toolSelect" class="primary">🧲 Auswahl</button>
+      <button id="toolScale" class="warn">📏 Maßstab</button>
+      <button id="toolSource" class="ok">🚰 Wasserquelle</button>
+      <button id="toolArea" class="vio">🟦 Fläche</button>
+    </div>
+
+    <div class="sep"></div>
+
+    <h3>Bild (Plan) hochladen</h3>
+    <div class="row">
+      <input id="fileBg" type="file" accept="image/*" />
+      <button id="btnFitView" class="primary">Bild: Fit</button>
+    </div>
+    <div class="hint">Bild wird proportional angezeigt (kein Verzerren).</div>
 
     <div class="sep"></div>
 
     <h3>Shortcuts</h3>
     <div class="hint">
       <div><span class="mono">Mausrad</span> Zoom</div>
-      <div><span class="mono">Space</span> Pan (halten)</div>
-      <div><span class="mono">Esc</span> Maßstab reset (A/B)</div>
+      <div><span class="mono">Esc</span> Abbrechen / Reset</div>
+      <div><span class="mono">Doppelklick</span> Polygon beenden</div>
     </div>
   </div>
 
@@ -88,7 +108,7 @@
   <!-- RIGHT -->
   <div class="panel">
     <h3>Eigenschaften</h3>
-    <div class="hint" id="modeHint">Wähle einen Schritt.</div>
+    <div class="hint" id="modeHint">Wähle einen Schritt oder Tool.</div>
 
     <div class="sep"></div>
 
@@ -101,29 +121,50 @@
         <input id="scaleMeters" type="number" min="0.1" step="0.1" value="5" />
         <button id="btnApplyScale" class="primary">Anwenden</button>
       </div>
-      <div class="hint">Schritt „Maßstab“: Punkt A klicken → Punkt B klicken → Anwenden.</div>
+      <p class="hint">Tipp: Nimm eine bekannte Länge (z.B. 5 m) und klicke zwei Punkte darauf.</p>
     </div>
 
     <div id="propsSource" style="display:none;">
       <h3>Wasserquelle</h3>
       <div class="row"><label>Name</label><input id="srcName" type="text" value="Wasserhahn" /></div>
+      <div class="row"><label>Info</label><input id="srcInfo" type="text" value="z.B. 3.0 bar / 2.5 m³/h" /></div>
+      <div class="row"><button id="btnDeleteSource" class="warn">Quelle löschen</button></div>
+      <div class="hint">Quelle wird nicht verschoben (wie gewünscht).</div>
+    </div>
+
+    <div id="propsArea" style="display:none;">
+      <h3>Zu bewässernde Fläche</h3>
       <div class="row">
-        <button id="btnDeleteSource" class="warn">Quelle löschen</button>
+        <button id="btnDeleteArea" class="warn">Fläche löschen</button>
+        <button id="btnRedrawArea" class="primary">Neu zeichnen</button>
       </div>
+      <div class="hint">Klick = Punkt • Doppelklick = fertig • Esc = abbrechen.</div>
+    </div>
+
+    <div class="sep"></div>
+
+    <div class="kpi">
+      <div class="card"><div class="k">Bild</div><div class="v" id="kpiBg">–</div></div>
+      <div class="card"><div class="k">Maßstab</div><div class="v" id="kpiScale">–</div></div>
+      <div class="card"><div class="k">Quelle</div><div class="v" id="kpiSrc">–</div></div>
+      <div class="card"><div class="k">Fläche</div><div class="v" id="kpiArea">–</div></div>
     </div>
   </div>
 </div>
 
 <script>
 (() => {
+  const APP_VERSION = "PVC WELT Bewässerungsplaner Demo v0.6";
+
   const canvas = document.getElementById('c');
   const ctx = canvas.getContext('2d');
   const el = (id) => document.getElementById(id);
 
+  const uid = () => Math.random().toString(16).slice(2) + Date.now().toString(16);
   const clamp = (v,a,b)=>Math.max(a,Math.min(b,v));
   const dist = (a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
 
-  // View
+  // View (kein Pan, nur Zoom + Fit)
   let view = { x: 20, y: 20, s: 1 };
   function worldToScreen(p){ return { x:(p.x+view.x)*view.s, y:(p.y+view.y)*view.s }; }
   function screenToWorld(p){ return { x:p.x/view.s - view.x, y:p.y/view.s - view.y }; }
@@ -138,32 +179,55 @@
   }
   window.addEventListener('resize', fitCanvas);
 
-  // State
   const state = {
+    version: APP_VERSION,
     bg: { img:null, w:0, h:0, url:null },
     scale: { pxPerMeter:null, a:null, b:null },
-    source: null, // {x,y,name}
+    source: null,
+    areas: [], // wir starten mit 1 Fläche
+    selection: null, // {kind:'source'|'area', id}
   };
 
-  // “Hidden” mode (keine Tools UI)
-  let mode = 'pan'; // pan | scale | source
-  let mouse = { down:false, last:null, x:0, y:0 };
-  let spacePan = false;
+  // Tools (Pan/Zoom entfernt)
+  let tool = 'select';
+  let drawing = { kind:null, pts:[], temp:null };
+  let mouse = { down:false, x:0, y:0 };
+
+  function closeThresholdWorld(){ return 14 / view.s; }
+
+  // Geometry
+  function pointInPoly(pt, poly){
+    let inside=false;
+    for(let i=0,j=poly.length-1;i<poly.length;j=i++){
+      const xi=poly[i].x, yi=poly[i].y;
+      const xj=poly[j].x, yj=poly[j].y;
+      const intersect=((yi>pt.y)!=(yj>pt.y)) && (pt.x < (xj-xi)*(pt.y-yi)/(yj-yi+1e-9)+xi);
+      if(intersect) inside=!inside;
+    }
+    return inside;
+  }
+
+  function centroid(pts){
+    let x=0,y=0; for(const p of pts){x+=p.x;y+=p.y;}
+    return {x:x/pts.length,y:y/pts.length};
+  }
 
   function stepStatus(){
     return {
+      s1: !!state.bg.img,
       s2: !!state.scale.pxPerMeter,
       s3: !!state.source,
+      s4: state.areas.length>0,
     };
   }
 
-  // ✅ KEIN Schritt “Bild hochladen” (weil Upload oben)
   function renderSteps(){
     const st=stepStatus();
     const steps = [
-      { title:'2) Maßstab setzen', ok:st.s2, text:'Punkt A klicken → Punkt B klicken → Meter → Anwenden.', action:()=>setMode('scale') },
-      { title:'3) Wasserquelle setzen', ok:st.s3, text:'Klick setzt die Quelle (neuer Klick ersetzt).', action:()=>setMode('source') },
-      { title:'Pan/Zoom', ok:true, text:'Zum verschieben/zoomen.', action:()=>setMode('pan') },
+      { title:'1) Bild hochladen', ok:st.s1, text:'Planbild auswählen, dann „Bild: Fit“.', tool:null },
+      { title:'2) Maßstab setzen', ok:st.s2, text:'📏 Tool → 2 Punkte klicken → Meter eingeben → Anwenden.', tool:'scale' },
+      { title:'3) Wasserquelle setzen', ok:st.s3, text:'🚰 Tool → 1 Klick im Plan.', tool:'source' },
+      { title:'4) Zu bewässernde Fläche auswählen', ok:st.s4, text:'🟦 Tool → Polygon zeichnen (Doppelklick beendet).', tool:'area' },
     ];
 
     const wrap=el('steps');
@@ -171,20 +235,46 @@
     for(const s of steps){
       const div=document.createElement('div');
       div.className='step';
+      const badge = s.ok ? `<span class="badge ok">OK</span>` : `<span class="badge open">OFFEN</span>`;
       div.innerHTML=`
         <div>
           <div class="sTitle">${s.title}</div>
           <div class="sText">${s.text}</div>
         </div>
-        <div>${s.ok ? `<span class="badge ok">OK</span>` : `<span class="badge open">OFFEN</span>`}</div>
+        <div style="display:flex;flex-direction:column;gap:8px;align-items:flex-end;">
+          ${badge}
+        </div>
       `;
-      div.addEventListener('click', s.action);
+      div.addEventListener('click', ()=>{
+        if(s.tool) setTool(s.tool);
+        else el('fileBg').click();
+      });
       wrap.appendChild(div);
     }
+    updateMiniKPIs();
   }
 
-  function setMode(m){
-    mode = m;
+  // Tool buttons
+  const toolButtons = {
+    select: el('toolSelect'),
+    scale: el('toolScale'),
+    source: el('toolSource'),
+    area: el('toolArea'),
+  };
+
+  function setTool(t){
+    tool=t;
+    Object.entries(toolButtons).forEach(([k,btn])=>{
+      btn.classList.remove('primary','warn','ok','vio');
+      if(k===t){
+        if(k==='scale') btn.classList.add('warn');
+        else if(k==='source') btn.classList.add('ok');
+        else if(k==='area') btn.classList.add('vio');
+        else btn.classList.add('primary');
+      }
+    });
+    // reset drawing preview when switching tools
+    drawing={kind:null, pts:[], temp:null};
     updateModeHint();
     showProps();
     render();
@@ -192,11 +282,12 @@
 
   function updateModeHint(){
     const hints={
-      pan:"Pan/Zoom aktiv (ziehen / Space halten / Mausrad).",
-      scale:"Maßstab aktiv: Punkt A klicken, Punkt B klicken.",
-      source:"Wasserquelle aktiv: Klick setzt die Quelle.",
+      select:"Auswahl: anklicken (Quelle / Fläche).",
+      scale:"Maßstab: Punkt A klicken, Punkt B klicken, Meter eingeben → Anwenden.",
+      source:"Wasserquelle: Klick zum Setzen.",
+      area:"Fläche: Klick = Punkt • Doppelklick = fertig • Esc = abbrechen.",
     };
-    el('modeHint').textContent = hints[mode] || "";
+    el('modeHint').textContent=hints[tool]||"";
   }
 
   // Background upload
@@ -208,6 +299,7 @@
       state.bg.img=img; state.bg.w=img.width; state.bg.h=img.height; state.bg.url=url;
       fitImageToView();
       renderSteps();
+      setTool('scale'); // direkt Maßstab
       render();
     };
     img.src=url;
@@ -226,6 +318,44 @@
   }
   el('btnFitView').addEventListener('click', ()=>{ fitImageToView(); render(); });
 
+  // Export/Import
+  el('btnExport').addEventListener('click', ()=>{
+    const payload={
+      version: state.version,
+      bg:{w:state.bg.w,h:state.bg.h},
+      scale:state.scale,
+      source:state.source,
+      areas:state.areas,
+    };
+    const blob=new Blob([JSON.stringify(payload,null,2)],{type:"application/json"});
+    const a=document.createElement('a');
+    a.href=URL.createObjectURL(blob);
+    a.download=`bewaesserungsplan_${new Date().toISOString().slice(0,10)}.json`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+  });
+
+  el('btnImport').addEventListener('click', ()=>el('fileImport').click());
+  el('fileImport').addEventListener('change', async (e)=>{
+    const file=e.target.files?.[0]; if(!file) return;
+    const d=JSON.parse(await file.text());
+    state.scale=d.scale||{pxPerMeter:null,a:null,b:null};
+    state.source=d.source||null;
+    state.areas=d.areas||[];
+    state.selection=null;
+    drawing={kind:null,pts:[],temp:null};
+    renderSteps();
+    showProps();
+    render();
+    e.target.value="";
+  });
+
+  // Tool wiring
+  el('toolSelect').addEventListener('click', ()=>setTool('select'));
+  el('toolScale').addEventListener('click', ()=>setTool('scale'));
+  el('toolSource').addEventListener('click', ()=>setTool('source'));
+  el('toolArea').addEventListener('click', ()=>setTool('area'));
+
   // Scale apply
   el('btnApplyScale').addEventListener('click', ()=>{
     if(!state.scale.a||!state.scale.b) return;
@@ -234,94 +364,155 @@
     if(meters>0 && dpx>0){
       state.scale.pxPerMeter=dpx/meters;
       renderSteps();
-      // danach sinnvoll: Quelle setzen
-      setMode('source');
+      setTool('source'); // nächster Punkt
       render();
     }
   });
 
   // Source props
+  function getSel(kind){
+    if(state.selection?.kind!==kind) return null;
+    if(kind==='source') return (state.source && state.source.id===state.selection.id) ? state.source : null;
+    if(kind==='area') return state.areas.find(a=>a.id===state.selection.id)||null;
+    return null;
+  }
+
+  function showProps(){
+    const sel=state.selection;
+
+    el('propsNone').style.display = (!sel && !(tool==='scale' && state.scale.a && state.scale.b)) ? 'block' : 'none';
+    el('propsScale').style.display = (tool==='scale' && state.scale.a && state.scale.b) ? 'block' : 'none';
+
+    el('propsSource').style.display = (sel?.kind==='source') ? 'block' : 'none';
+    el('propsArea').style.display   = (sel?.kind==='area') ? 'block' : 'none';
+
+    if(sel?.kind==='source'){
+      el('srcName').value=state.source?.name||"";
+      el('srcInfo').value=state.source?.info||"";
+    }
+  }
+
   el('srcName').addEventListener('input', ()=>{
-    if(!state.source) return;
-    state.source.name = el('srcName').value || "Wasserhahn";
+    const s=getSel('source'); if(!s) return;
+    s.name=el('srcName').value||s.name;
+    render();
+  });
+  el('srcInfo').addEventListener('input', ()=>{
+    const s=getSel('source'); if(!s) return;
+    s.info=el('srcInfo').value||"";
     render();
   });
   el('btnDeleteSource').addEventListener('click', ()=>{
     state.source=null;
-    renderSteps();
-    showProps();
-    render();
+    state.selection=null;
+    renderSteps(); showProps(); render();
   });
 
-  function showProps(){
-    el('propsNone').style.display = 'block';
-    el('propsScale').style.display = 'none';
-    el('propsSource').style.display = 'none';
+  el('btnDeleteArea').addEventListener('click', ()=>{
+    const a=getSel('area'); if(!a) return;
+    state.areas=state.areas.filter(x=>x.id!==a.id);
+    state.selection=null;
+    renderSteps(); showProps(); render();
+  });
+  el('btnRedrawArea').addEventListener('click', ()=>{
+    // löscht alle Flächen und startet neu zeichnen
+    state.areas=[];
+    state.selection=null;
+    setTool('area');
+    renderSteps(); showProps(); render();
+    alert("Jetzt Fläche neu zeichnen: Klick = Punkt, Doppelklick = fertig.");
+  });
 
-    if(mode==='scale' && state.scale.a && state.scale.b){
-      el('propsNone').style.display='none';
-      el('propsScale').style.display='block';
+  // Hit test (Quelle / Fläche)
+  function hitTest(w){
+    if(state.source && Math.hypot(w.x-state.source.x,w.y-state.source.y) < 14/view.s){
+      return {kind:'source', id:state.source.id};
     }
-    if(mode==='source' && state.source){
-      el('propsNone').style.display='none';
-      el('propsSource').style.display='block';
-      el('srcName').value = state.source.name || "Wasserhahn";
+    for(let i=state.areas.length-1;i>=0;i--){
+      const a=state.areas[i];
+      if(a.pts?.length>=3 && pointInPoly(w,a.pts)) return {kind:'area', id:a.id};
     }
+    return null;
   }
-
-  // Keyboard
-  window.addEventListener('keydown', (e)=>{
-    if(e.code==='Space') spacePan=true;
-    if(e.code==='Escape'){
-      state.scale.a=null; state.scale.b=null;
-      showProps();
-      render();
-    }
-  });
-  window.addEventListener('keyup', (e)=>{ if(e.code==='Space') spacePan=false; });
 
   // Mouse
   canvas.addEventListener('mousedown', (e)=>{
     mouse.down=true;
-    mouse.last={x:e.offsetX,y:e.offsetY};
     const w=screenToWorld({x:e.offsetX,y:e.offsetY});
 
-    if(spacePan || mode==='pan') return;
-
-    if(mode==='scale'){
-      if(!state.scale.a) state.scale.a=w;
-      else if(!state.scale.b) state.scale.b=w;
-      else { state.scale.a=w; state.scale.b=null; state.scale.pxPerMeter=null; }
-      showProps();
-      render();
+    if(tool==='select'){
+      state.selection=hitTest(w);
+      showProps(); render();
       return;
     }
 
-    if(mode==='source'){
-      state.source = { x:w.x, y:w.y, name: state.source?.name || "Wasserhahn" };
-      renderSteps();
-      showProps();
+    if(tool==='scale'){
+      if(!state.scale.a) state.scale.a=w;
+      else if(!state.scale.b) state.scale.b=w;
+      else { state.scale.a=w; state.scale.b=null; state.scale.pxPerMeter=null; }
+      showProps(); render();
+      return;
+    }
+
+    if(tool==='source'){
+      state.source={id:uid(), name:"Wasserhahn", info:"", x:w.x, y:w.y};
+      state.selection={kind:'source', id:state.source.id};
+      renderSteps(); showProps(); render();
+      // automatisch weiter zu Fläche
+      setTool('area');
+      return;
+    }
+
+    if(tool==='area'){
+      if(!drawing.kind) drawing.kind='area';
+      if(drawing.kind!=='area') drawing={kind:'area', pts:[], temp:null};
+
+      // close by clicking near first point
+      if(drawing.pts.length>=3 && dist(w, drawing.pts[0]) <= closeThresholdWorld()){
+        finalizeArea();
+        return;
+      }
+
+      drawing.pts.push(w);
       render();
       return;
     }
   });
 
   canvas.addEventListener('mousemove', (e)=>{
-    mouse.x=e.offsetX; mouse.y=e.offsetY;
+    const w=screenToWorld({x:e.offsetX,y:e.offsetY});
+    drawing.temp=w;
+    if(tool==='area' && drawing.kind==='area') render();
+  });
 
-    if(!mouse.down) return;
+  canvas.addEventListener('mouseup', ()=>{ mouse.down=false; });
 
-    if(mode==='pan' || spacePan){
-      const dx=(e.offsetX-mouse.last.x)/view.s;
-      const dy=(e.offsetY-mouse.last.y)/view.s;
-      view.x+=dx; view.y+=dy;
-      mouse.last={x:e.offsetX,y:e.offsetY};
-      render(); return;
+  canvas.addEventListener('dblclick', ()=>{
+    if(tool==='area' && drawing.kind==='area' && drawing.pts.length>=3){
+      finalizeArea();
     }
   });
 
-  canvas.addEventListener('mouseup', ()=>{ mouse.down=false; mouse.last=null; });
+  window.addEventListener('keydown', (e)=>{
+    if(e.code==='Escape'){
+      // reset current operation
+      drawing={kind:null,pts:[],temp:null};
+      state.scale.a=null; state.scale.b=null;
+      showProps(); render();
+    }
+  });
 
+  function finalizeArea(){
+    if(drawing.pts.length<3){ drawing={kind:null,pts:[],temp:null}; render(); return; }
+    // NUR 1 Fläche: neue ersetzt alte
+    state.areas=[{id:uid(), name:"Fläche 1", pts:[...drawing.pts]}];
+    state.selection={kind:'area', id:state.areas[0].id};
+    drawing={kind:null,pts:[],temp:null};
+    renderSteps(); showProps(); render();
+    setTool('select'); // fertig -> Auswahl
+  }
+
+  // Zoom (ohne Pan)
   canvas.addEventListener('wheel', (e)=>{
     e.preventDefault();
     const zoom = Math.exp(-e.deltaY*0.0012);
@@ -359,8 +550,25 @@
     ctx.fillText(text, s.x, s.y-9);
     ctx.restore();
   }
-  function drawSource(src){
-    const p=worldToScreen({x:src.x,y:src.y});
+  function drawPoly(pts, fill, stroke, lw, closed, label){
+    if(!pts || pts.length<2) return;
+    ctx.save();
+    ctx.beginPath();
+    const p0=worldToScreen(pts[0]);
+    ctx.moveTo(p0.x,p0.y);
+    for(let i=1;i<pts.length;i++){
+      const pi=worldToScreen(pts[i]);
+      ctx.lineTo(pi.x,pi.y);
+    }
+    if(closed && pts.length>=3) ctx.closePath();
+    if(fill){ ctx.fillStyle=fill; ctx.fill(); }
+    ctx.strokeStyle=stroke; ctx.lineWidth=lw; ctx.stroke();
+    ctx.restore();
+    if(label && pts.length>=3) drawLabel(centroid(pts), label, stroke);
+  }
+
+  function drawSource(s){
+    const p=worldToScreen({x:s.x,y:s.y});
     ctx.save();
     ctx.fillStyle='rgba(52,211,153,.95)';
     ctx.beginPath(); ctx.arc(p.x,p.y,7,0,Math.PI*2); ctx.fill();
@@ -368,8 +576,16 @@
     ctx.beginPath(); ctx.arc(p.x,p.y,16,0,Math.PI*2); ctx.stroke();
     ctx.font='12px ui-sans-serif,system-ui';
     ctx.fillStyle='rgba(230,237,243,.9)';
-    ctx.fillText(src.name || "Wasserhahn", p.x+10, p.y-18);
+    ctx.fillText(`${s.name}`, p.x+10, p.y-18);
+    if(s.info) ctx.fillText(`${s.info}`, p.x+10, p.y-3);
     ctx.restore();
+  }
+
+  function updateMiniKPIs(){
+    el('kpiBg').textContent = state.bg.img ? "OK" : "–";
+    el('kpiScale').textContent = state.scale.pxPerMeter ? "OK" : "–";
+    el('kpiSrc').textContent = state.source ? "OK" : "–";
+    el('kpiArea').textContent = state.areas.length ? "OK" : "–";
   }
 
   // Render
@@ -379,6 +595,18 @@
     if(state.bg.img){
       const p0=worldToScreen({x:0,y:0});
       ctx.drawImage(state.bg.img, p0.x, p0.y, state.bg.w*view.s, state.bg.h*view.s);
+    }
+
+    // Fläche (blau)
+    for(const a of state.areas){
+      if(a.pts?.length>=3) drawPoly(a.pts,'rgba(76,201,240,.16)','rgba(76,201,240,.90)',2,true,a.name);
+    }
+
+    // preview Fläche zeichnen
+    if(drawing.kind==='area' && drawing.pts.length){
+      const pts = drawing.temp ? [...drawing.pts, drawing.temp] : drawing.pts;
+      drawPoly(pts,'rgba(76,201,240,.06)','rgba(76,201,240,1)',2,false,null);
+      drawPoint(drawing.pts[0],'rgba(76,201,240,1)',6);
     }
 
     // scale points
@@ -392,13 +620,21 @@
     }
 
     if(state.source) drawSource(state.source);
+
+    // selection highlight
+    if(state.selection?.kind==='source' && state.source){
+      drawPoint({x:state.source.x,y:state.source.y},'rgba(52,211,153,1)',10);
+    }
+    if(state.selection?.kind==='area'){
+      const a=getSel('area');
+      if(a?.pts?.length>=3) drawPoly(a.pts,null,'rgba(76,201,240,1)',3,true,null);
+    }
   }
 
   function init(){
-    setMode('pan');
+    setTool('select');
     fitCanvas();
     renderSteps();
-    updateModeHint();
     showProps();
     render();
   }
