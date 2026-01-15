@@ -3,11 +3,11 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>PVC WELT Bewässerungsplaner Demo v0.6</title>
+  <title>PVC WELT Bewässerungsplaner Demo v0.8</title>
   <style>
     :root{
       --bg:#0b0f14; --panel:#121926; --muted:#9aa4b2; --text:#e6edf3;
-      --accent:#4cc9f0; --warn:#fbbf24; --ok:#34d399; --bad:#fb7185; --vio:#a78bfa;
+      --accent:#4cc9f0; --warn:#fbbf24; --ok:#34d399; --vio:#a78bfa; --bad:#fb7185;
       --line:rgba(255,255,255,.10);
     }
     *{box-sizing:border-box;}
@@ -15,14 +15,15 @@
     header{padding:12px 16px;border-bottom:1px solid rgba(255,255,255,.08);display:flex;align-items:center;justify-content:space-between;gap:12px;}
     .title{font-weight:950;letter-spacing:.2px;}
     .sub{color:var(--muted);font-size:12px;margin-top:2px;}
-    .wrap{display:grid;grid-template-columns:360px 1fr;gap:12px;padding:12px;height:calc(100vh - 54px);}
+    .wrap{display:grid;grid-template-columns:380px 1fr;gap:12px;padding:12px;height:calc(100vh - 54px);}
     .panel{background:var(--panel);border:1px solid rgba(255,255,255,.08);border-radius:14px;padding:12px;overflow:auto;}
-    canvas{width:100%;height:100%;background:#070a10;border-radius:14px;border:1px solid rgba(255,255,255,.08);}
+    canvas{width:100%;height:100%;background:#070a10;border-radius:14px;border:1px solid rgba(255,255,255,.08);display:block;}
+
     h3{margin:0 0 10px;font-size:14px;color:#dbe7ff;}
     .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:8px 0;}
     label{font-size:12px;color:var(--muted);}
     input,select,button{background:#0f1520;color:var(--text);border:1px solid rgba(255,255,255,.12);border-radius:10px;padding:8px 10px;font-size:13px;}
-    input[type="number"]{width:120px;}
+    input[type="number"]{width:140px;}
     input[type="text"]{width:100%;}
     button{cursor:pointer;}
     button.primary{background:linear-gradient(135deg, rgba(76,201,240,.25), rgba(76,201,240,.08));border-color:rgba(76,201,240,.35);}
@@ -30,35 +31,75 @@
     button.ok{background:linear-gradient(135deg, rgba(52,211,153,.25), rgba(52,211,153,.08));border-color:rgba(52,211,153,.35);}
     button.vio{background:linear-gradient(135deg, rgba(167,139,250,.25), rgba(167,139,250,.08));border-color:rgba(167,139,250,.35);}
     button:disabled{opacity:.45;cursor:not-allowed;}
-    .hint{font-size:12px;color:var(--muted);line-height:1.35;}
+    .hint{font-size:12px;color:var(--muted);line-height:1.45;}
     .sep{height:1px;background:rgba(255,255,255,.08);margin:12px 0;}
     .mono{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;}
-    .toolgrid{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+
     .badge{font-size:11px;padding:3px 8px;border-radius:999px;border:1px solid rgba(255,255,255,.12);color:var(--muted);}
     .badge.open{border-color:rgba(251,191,36,.35);color:rgba(251,191,36,.95);}
     .badge.ok{border-color:rgba(52,211,153,.35);color:rgba(52,211,153,.95);}
+
     .step{
       display:flex;align-items:flex-start;justify-content:space-between;gap:10px;
       padding:10px;border:1px solid rgba(255,255,255,.08);border-radius:12px;margin:8px 0;
       background:rgba(0,0,0,.18);
-      user-select:none;
+      cursor:pointer; user-select:none;
+      transition:border-color .12s ease;
     }
+    .step:hover{border-color:rgba(76,201,240,.25);}
+    .step.active{border-color:rgba(76,201,240,.55); box-shadow:0 0 0 2px rgba(76,201,240,.12) inset;}
     .step .sTitle{font-weight:900;font-size:13px;}
     .step .sText{font-size:12px;color:var(--muted);margin-top:4px;line-height:1.3;}
-    .activeTool{
-      border-color:rgba(76,201,240,.50) !important;
-      box-shadow:0 0 0 2px rgba(76,201,240,.15) inset;
+
+    /* Bottom popup */
+    .popupWrap{
+      position:fixed; left:0; right:0; bottom:18px;
+      display:flex; justify-content:center; pointer-events:none;
+      z-index:1000;
     }
+    .popup{
+      width:min(760px, calc(100vw - 24px));
+      background:rgba(18,25,38,.95);
+      border:1px solid rgba(255,255,255,.14);
+      border-radius:16px;
+      box-shadow:0 20px 60px rgba(0,0,0,.5);
+      padding:12px 12px 10px;
+      pointer-events:auto;
+      display:none;
+    }
+    .popup.show{display:block;}
+    .popupHead{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px;}
+    .popupTitle{font-weight:950;font-size:13px;color:#dbe7ff;}
+    .popupClose{background:#0f1520;border:1px solid rgba(255,255,255,.12);border-radius:10px;padding:6px 10px;font-size:12px;cursor:pointer;}
+    .popupBody{font-size:12px;color:var(--muted);line-height:1.45;}
+    .popupBody ul{margin:8px 0 0 18px; padding:0;}
+    .popupBody li{margin:6px 0;}
+
+    .popupGrid{
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      gap:10px;
+      margin-top:10px;
+    }
+    .box{
+      border:1px solid rgba(255,255,255,.10);
+      border-radius:14px;
+      background:rgba(0,0,0,.18);
+      padding:10px;
+    }
+    .box h4{margin:0 0 8px;font-size:12px;color:#dbe7ff;}
+    .box .row{margin:6px 0;}
+    .box small{color:var(--muted);}
   </style>
 </head>
 <body>
 <header>
   <div>
-    <div class="title">PVC WELT Bewässerungsplaner Demo <span class="mono">v0.6</span></div>
-    <div class="sub">Punkt 1–4: Bild • Maßstab • Wasserquelle • Zu bewässernde Fläche (Polygon)</div>
+    <div class="title">PVC WELT Bewässerungsplaner Demo <span class="mono">v0.8</span></div>
+    <div class="sub">Schritte: Bild • Maßstab • Wasserquelle • Fläche • Regner</div>
   </div>
   <div class="row">
-    <button class="primary" id="btnResetView">Ansicht: Fit</button>
+    <button class="primary" id="btnFitView">Bild: Fit</button>
     <button class="warn" id="btnResetAll">Alles reset</button>
   </div>
 </header>
@@ -67,38 +108,16 @@
   <!-- LEFT -->
   <div class="panel">
     <h3>Schritt für Schritt</h3>
-    <div class="hint">Tools sind **nur**: Maßstab, Wasserquelle, Fläche. (Pan/Zoom kein Tool mehr)</div>
+    <div class="hint">👉 Klick auf einen Schritt. Erklärung kommt unten als kleines Pop-up (nur für aktive Schritte).</div>
     <div id="steps"></div>
 
     <div class="sep"></div>
 
-    <h3>Bild (Plan) hochladen</h3>
+    <h3>1) Bild (Plan) hochladen</h3>
     <div class="row">
       <input id="fileBg" type="file" accept="image/*" />
-      <button id="btnFitView" class="primary">Bild: Fit</button>
     </div>
     <div class="hint">Bild wird proportional angezeigt (kein Verzerren).</div>
-
-    <div class="sep"></div>
-
-    <h3>Tools</h3>
-    <div class="toolgrid">
-      <button id="toolScale" class="warn">📏 Maßstab</button>
-      <button id="toolSource" class="ok">🚰 Wasserquelle</button>
-      <button id="toolArea" class="vio">🟩 Fläche wählen</button>
-      <button id="toolCancel">✖️ Abbrechen</button>
-    </div>
-
-    <div class="sep"></div>
-
-    <h3>Maßstab</h3>
-    <div class="hint">1) Tool „Maßstab“ → Punkt A klicken → Punkt B klicken → Meter eingeben → Anwenden.</div>
-    <div class="row">
-      <label>Meter zwischen A und B</label>
-      <input id="scaleMeters" type="number" min="0.1" step="0.1" value="5" />
-      <button id="btnApplyScale" class="primary">Anwenden</button>
-    </div>
-    <div class="hint">Esc setzt Maßstab-Punkte zurück.</div>
 
     <div class="sep"></div>
 
@@ -106,13 +125,13 @@
     <div class="hint">
       <div><span class="mono">Mausrad</span> Zoom</div>
       <div><span class="mono">Space</span> Pan (halten + ziehen)</div>
-      <div><span class="mono">Doppelklick</span> Polygon beenden</div>
-      <div><span class="mono">Esc</span> Abbrechen / Maßstab reset (A/B)</div>
+      <div><span class="mono">Esc</span> Abbrechen aktueller Vorgang</div>
+      <div><span class="mono">Doppelklick</span> Fläche beenden (alternativ Startpunkt klicken)</div>
     </div>
 
     <div class="sep"></div>
     <div class="hint">
-      <b>Wichtig:</b> Klick-Versatz ist gefixt über <span class="mono">getBoundingClientRect()</span>.
+      Status: <span id="statusLine">–</span>
     </div>
   </div>
 
@@ -122,10 +141,20 @@
   </div>
 </div>
 
+<!-- Bottom popup -->
+<div class="popupWrap">
+  <div class="popup" id="popup">
+    <div class="popupHead">
+      <div class="popupTitle" id="popupTitle">–</div>
+      <button class="popupClose" id="popupClose">Schließen</button>
+    </div>
+    <div class="popupBody" id="popupBody"></div>
+  </div>
+</div>
+
 <script>
 (() => {
-  const APP_VERSION = "PVC WELT Bewässerungsplaner Demo v0.6";
-
+  const APP_VERSION = "PVC WELT Bewässerungsplaner Demo v0.8";
   const canvas = document.getElementById('c');
   const ctx = canvas.getContext('2d');
   const el = (id) => document.getElementById(id);
@@ -134,7 +163,7 @@
   const clamp = (v,a,b)=>Math.max(a,Math.min(b,v));
   const dist = (a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
 
-  // ✅ Fix für Maus-Position (kein offsetX/offsetY mehr)
+  // ✅ Fix Mausversatz: NIE offsetX/offsetY
   function mousePos(e){
     const r = canvas.getBoundingClientRect();
     return { x: (e.clientX - r.left), y: (e.clientY - r.top) };
@@ -148,76 +177,348 @@
   function fitCanvas(){
     const rect = canvas.getBoundingClientRect();
     const dpr = window.devicePixelRatio || 1;
-    canvas.width = Math.max(900, Math.floor(rect.width * dpr));
+    canvas.width  = Math.max(900, Math.floor(rect.width  * dpr));
     canvas.height = Math.max(600, Math.floor(rect.height * dpr));
     ctx.setTransform(dpr,0,0,dpr,0,0);
     render();
   }
   window.addEventListener('resize', fitCanvas);
 
-  // State (nur bis Punkt 4)
+  // State
   const state = {
     version: APP_VERSION,
     bg: { img:null, w:0, h:0, url:null },
     scale: { pxPerMeter:null, a:null, b:null },
-    source: null,           // {id,name,x,y}
-    areas: [],              // [{id,name,pts:[{x,y}]}] (wir nutzen erstmal eine)
+    source: null, // {id,name,x,y}
+    area: null,   // {id,name,pts:[{x,y}]}
+    sprinklers: [], // {id,presetKey,x,y,dirDeg}
   };
 
-  // Tools
-  let tool = 'scale'; // default nach Upload
-  let drawing = { kind:null, pts:[], temp:null };
+  // Sprinkler presets (Pseudo)
+  const SPR_PRESETS = [
+    { key:"MP1000", name:"MP1000", radiusM:4.0,  arcDeg:360 },
+    { key:"MP2000", name:"MP2000", radiusM:6.4,  arcDeg:360 },
+    { key:"MP3000", name:"MP3000", radiusM:9.0,  arcDeg:360 },
+    { key:"MP90",   name:"Corner 90°", radiusM:5.0, arcDeg:90  },
+    { key:"MP180",  name:"Half 180°",  radiusM:5.5, arcDeg:180 },
+  ];
+  const presetByKey = (k)=>SPR_PRESETS.find(p=>p.key===k) || SPR_PRESETS[1];
+
+  // Active step (no tool labels)
+  let activeStep = 1; // 1..5
+  const popup = el('popup');
+  const popupTitle = el('popupTitle');
+  const popupBody = el('popupBody');
+
+  // Drawing / interactions
+  let drawing = { kind:null, pts:[], temp:null }; // for area polygon
   let mouse = { down:false, last:null };
   let spacePan = false;
 
-  function setTool(t){
-    tool=t;
-    // UI highlight
-    [el('toolScale'), el('toolSource'), el('toolArea')].forEach(b=>b.classList.remove('activeTool'));
-    if(t==='scale') el('toolScale').classList.add('activeTool');
-    if(t==='source') el('toolSource').classList.add('activeTool');
-    if(t==='area') el('toolArea').classList.add('activeTool');
-    renderSteps();
-    render();
+  // Sprinkler placement & drag
+  let sprUI = {
+    presetKey: "MP2000",
+    dirDeg: 0,
+  };
+  let sprPlacing = null; // {id,presetKey,x,y,dirDeg} while mouse is down
+  let sprDragId = null;  // existing sprinkler drag
+
+  // Geometry
+  function pointInPoly(pt, poly){
+    let inside=false;
+    for(let i=0,j=poly.length-1;i<poly.length;j=i++){
+      const xi=poly[i].x, yi=poly[i].y;
+      const xj=poly[j].x, yj=poly[j].y;
+      const intersect=((yi>pt.y)!=(yj>pt.y)) && (pt.x < (xj-xi)*(pt.y-yi)/(yj-yi+1e-9)+xi);
+      if(intersect) inside=!inside;
+    }
+    return inside;
+  }
+  function polyBBox(pts){
+    let minX=Infinity,minY=Infinity,maxX=-Infinity,maxY=-Infinity;
+    for(const p of pts){minX=Math.min(minX,p.x);minY=Math.min(minY,p.y);maxX=Math.max(maxX,p.x);maxY=Math.max(maxY,p.y);}
+    return {minX,minY,maxX,maxY};
+  }
+  function closeThresholdWorld(){ return 14 / view.s; }
+
+  function sprinklerHitTest(w){
+    for(let i=state.sprinklers.length-1;i>=0;i--){
+      const s=state.sprinklers[i];
+      if(Math.hypot(w.x-s.x, w.y-s.y) < 14/view.s) return s.id;
+    }
+    return null;
   }
 
-  // Steps UI
+  // Popup logic
+  function hidePopup(){ popup.classList.remove('show'); }
+  function showPopup(title, html){
+    popupTitle.textContent = title;
+    popupBody.innerHTML = html;
+    popup.classList.add('show');
+  }
+  el('popupClose').addEventListener('click', hidePopup);
+
+  // Step content (Step 1 = no popup)
+  function setStep(n){
+    activeStep = n;
+    renderSteps();
+    // only show popup for steps 2..5
+    if(n===1){ hidePopup(); return; }
+    if(n===2) popupStep2();
+    if(n===3) popupStep3();
+    if(n===4) popupStep4();
+    if(n===5) popupStep5();
+  }
+
+  function popupStep2(){
+    showPopup("2) Maßstab setzen", `
+      <div>Setze zwei Punkte und gib die echte Länge ein.</div>
+      <ul>
+        <li>Klicke Punkt <b>A</b> auf eine bekannte Strecke.</li>
+        <li>Klicke Punkt <b>B</b> auf das andere Ende.</li>
+        <li>Gib unten die echte Länge in <b>Meter</b> ein und drücke <b>Anwenden</b>.</li>
+      </ul>
+      <div class="popupGrid">
+        <div class="box">
+          <h4>Meter eingeben</h4>
+          <div class="row">
+            <label>Meter zwischen A und B</label>
+            <input id="uiScaleMeters" type="number" min="0.1" step="0.1" value="5" />
+          </div>
+          <div class="row">
+            <button class="primary" id="uiApplyScale">Anwenden</button>
+            <button class="warn" id="uiResetScale">Reset</button>
+          </div>
+          <small>Hinweis: Ohne Maßstab keine Regner.</small>
+        </div>
+        <div class="box">
+          <h4>Tipp</h4>
+          <div>Wähle z.B. eine Wandlänge oder ein bekanntes Maß (z.B. 5m).</div>
+          <div style="margin-top:8px;"><span class="mono">Esc</span> bricht ab / setzt A/B zurück.</div>
+        </div>
+      </div>
+    `);
+
+    // wire popup inputs
+    const metersEl = document.getElementById('uiScaleMeters');
+    const applyBtn = document.getElementById('uiApplyScale');
+    const resetBtn = document.getElementById('uiResetScale');
+
+    metersEl.value = (el('scaleMetersHidden')?.value) || "5";
+
+    applyBtn.addEventListener('click', ()=>{
+      const meters = parseFloat(metersEl.value || "1");
+      if(!state.scale.a || !state.scale.b){ alert("Bitte erst Punkt A und Punkt B klicken."); return; }
+      const dpx = dist(state.scale.a, state.scale.b);
+      if(meters>0 && dpx>0){
+        state.scale.pxPerMeter = dpx / meters;
+        renderSteps();
+        render();
+        // next step
+        setStep(3);
+      }
+    });
+
+    resetBtn.addEventListener('click', ()=>{
+      state.scale.a=null; state.scale.b=null; state.scale.pxPerMeter=null;
+      renderSteps(); render();
+    });
+  }
+
+  function popupStep3(){
+    showPopup("3) Wasserquelle setzen", `
+      <div>Markiere den Startpunkt (z.B. Wasserhahn).</div>
+      <ul>
+        <li>Einmal in den Plan klicken = Quelle setzen.</li>
+        <li>Nochmal klicken = Quelle wird ersetzt.</li>
+      </ul>
+      <div class="popupGrid">
+        <div class="box">
+          <h4>Name (optional)</h4>
+          <div class="row">
+            <input id="uiSrcName" type="text" placeholder="z.B. Wasserhahn" value="${state.source?.name ? escapeHtml(state.source.name) : "Wasserhahn"}"/>
+          </div>
+          <div class="row">
+            <button class="warn" id="uiDelSource">Quelle löschen</button>
+            <button class="primary" id="uiToArea">Weiter: Fläche</button>
+          </div>
+        </div>
+        <div class="box">
+          <h4>Hinweis</h4>
+          <div>Die Quelle ist später der Start für Rohre & Zonen.</div>
+        </div>
+      </div>
+    `);
+
+    const nameEl = document.getElementById('uiSrcName');
+    const delBtn = document.getElementById('uiDelSource');
+    const toArea = document.getElementById('uiToArea');
+
+    nameEl.addEventListener('input', ()=>{
+      if(!state.source) return;
+      state.source.name = nameEl.value || "Wasserhahn";
+      render();
+    });
+
+    delBtn.addEventListener('click', ()=>{
+      state.source=null;
+      renderSteps(); render();
+      popupStep3(); // refresh
+    });
+
+    toArea.addEventListener('click', ()=> setStep(4));
+  }
+
+  function popupStep4(){
+    showPopup("4) Zu bewässernde Fläche auswählen", `
+      <div>Zeichne die Fläche, die bewässert werden soll.</div>
+      <ul>
+        <li>Klick = Punkt setzen</li>
+        <li><b>Startpunkt wieder anklicken</b> = Fläche schließt automatisch (magnetisch)</li>
+        <li>Alternativ: <b>Doppelklick</b> beendet</li>
+        <li><b>Esc</b> bricht ab</li>
+      </ul>
+      <div class="popupGrid">
+        <div class="box">
+          <h4>Aktionen</h4>
+          <div class="row">
+            <button class="warn" id="uiClearArea">Fläche löschen</button>
+            <button class="primary" id="uiToSpr">Weiter: Regner</button>
+          </div>
+          <small>Nur 1 Fläche (Demo). Neu zeichnen ersetzt die alte.</small>
+        </div>
+        <div class="box">
+          <h4>Tipp</h4>
+          <div>Je genauer die Fläche, desto besser wird Auto-Regner später.</div>
+        </div>
+      </div>
+    `);
+
+    document.getElementById('uiClearArea').addEventListener('click', ()=>{
+      state.area=null;
+      drawing={kind:null,pts:[],temp:null};
+      renderSteps(); render();
+    });
+    document.getElementById('uiToSpr').addEventListener('click', ()=> setStep(5));
+  }
+
+  function popupStep5(){
+    showPopup("5) Regner setzen", `
+      <div>Wähle einen Regner und platziere ihn.</div>
+      <ul>
+        <li><b>Maus gedrückt halten</b>: du siehst sofort die Spritzfläche und kannst verschieben</li>
+        <li>Loslassen = Regner wird gesetzt</li>
+        <li>Gesetzte Regner sind <b>verschiebbar</b> (anklicken & ziehen)</li>
+      </ul>
+
+      <div class="popupGrid">
+        <div class="box">
+          <h4>Regner auswählen</h4>
+          <div class="row">
+            <label>Preset</label>
+            <select id="uiSprPreset"></select>
+          </div>
+          <div class="row">
+            <label>Richtung (°)</label>
+            <input id="uiSprDir" type="number" min="0" max="359" step="1" value="${sprUI.dirDeg}" />
+          </div>
+          <small>Arc & Radius kommen aus dem Preset (Demo).</small>
+        </div>
+
+        <div class="box">
+          <h4>Auto-Regner (Demo)</h4>
+          <div class="row">
+            <button class="vio" id="uiAutoSpr">✨ Auto-Regner in Fläche</button>
+            <button class="warn" id="uiClearSpr">Regner löschen</button>
+          </div>
+          <small>Auto setzt mit moderater Überlappung (nicht zu viel).</small>
+        </div>
+      </div>
+    `);
+
+    const sel = document.getElementById('uiSprPreset');
+    sel.innerHTML = SPR_PRESETS.map(p => `<option value="${p.key}">${p.name} (${p.radiusM}m • ${p.arcDeg}°)</option>`).join("");
+    sel.value = sprUI.presetKey;
+
+    sel.addEventListener('change', ()=>{
+      sprUI.presetKey = sel.value;
+    });
+
+    const dirEl = document.getElementById('uiSprDir');
+    dirEl.addEventListener('input', ()=>{
+      sprUI.dirDeg = ((parseFloat(dirEl.value||"0")%360)+360)%360;
+    });
+
+    document.getElementById('uiClearSpr').addEventListener('click', ()=>{
+      if(!confirm("Alle Regner löschen?")) return;
+      state.sprinklers = [];
+      renderSteps(); render();
+    });
+
+    document.getElementById('uiAutoSpr').addEventListener('click', ()=>{
+      if(!state.scale.pxPerMeter){ alert("Bitte erst Maßstab setzen (Schritt 2)."); setStep(2); return; }
+      if(!state.source){ alert("Bitte erst Wasserquelle setzen (Schritt 3)."); setStep(3); return; }
+      if(!state.area || !state.area.pts || state.area.pts.length<3){ alert("Bitte erst Fläche zeichnen (Schritt 4)."); setStep(4); return; }
+
+      autoLayoutSprinklers();
+      renderSteps(); render();
+    });
+  }
+
+  function escapeHtml(s){
+    return String(s).replace(/[&<>"']/g, m => ({
+      "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"
+    }[m]));
+  }
+
+  // Steps list
   function stepStatus(){
     return {
       s1: !!state.bg.img,
       s2: !!state.scale.pxPerMeter,
       s3: !!state.source,
-      s4: state.areas.length>0 && (state.areas[0].pts?.length>=3),
+      s4: !!(state.area && state.area.pts && state.area.pts.length>=3),
+      s5: state.sprinklers.length>0,
     };
   }
+
   function renderSteps(){
     const st = stepStatus();
     const steps = [
-      { title:'1) Bild hochladen', ok:st.s1, text:'Planbild hochladen. Danach „Bild: Fit“.', action: ()=> el('fileBg').click() },
-      { title:'2) Maßstab setzen', ok:st.s2, text:'Tool „Maßstab“ → A klicken → B klicken → Meter → Anwenden.', action: ()=> setTool('scale') },
-      { title:'3) Wasserquelle setzen', ok:st.s3, text:'Tool „Wasserquelle“ → Klick im Plan.', action: ()=> setTool('source') },
-      { title:'4) Zu bewässernde Fläche wählen', ok:st.s4, text:'Tool „Fläche wählen“ → Polygon klicken → Doppelklick beendet.', action: ()=> setTool('area') },
+      { n:1, title:"1) Bild hochladen", ok:st.s1, text:"Planbild auswählen.", on:()=>{ setStep(1); el('fileBg').click(); } },
+      { n:2, title:"2) Maßstab setzen", ok:st.s2, text:"2 Punkte + Meter.", on:()=>{ setStep(2); } },
+      { n:3, title:"3) Wasserquelle setzen", ok:st.s3, text:"1 Klick im Plan.", on:()=>{ setStep(3); } },
+      { n:4, title:"4) Fläche auswählen", ok:st.s4, text:"Polygon zeichnen.", on:()=>{ setStep(4); } },
+      { n:5, title:"5) Regner setzen", ok:st.s5, text:"Regner platzieren/ziehen.", on:()=>{ setStep(5); } },
     ];
+
     const wrap = el('steps');
-    wrap.innerHTML='';
+    wrap.innerHTML = "";
     for(const s of steps){
       const div = document.createElement('div');
-      div.className='step';
+      div.className = "step" + (activeStep===s.n ? " active" : "");
       const badge = s.ok ? `<span class="badge ok">OK</span>` : `<span class="badge open">OFFEN</span>`;
-      div.innerHTML=`
+      div.innerHTML = `
         <div>
           <div class="sTitle">${s.title}</div>
           <div class="sText">${s.text}</div>
         </div>
         <div>${badge}</div>
       `;
-      div.style.cursor='pointer';
-      div.addEventListener('click', s.action);
+      div.addEventListener('click', s.on);
       wrap.appendChild(div);
     }
+
+    const parts=[];
+    parts.push(st.s1 ? "Bild ✅" : "Bild ❌");
+    parts.push(st.s2 ? "Maßstab ✅" : "Maßstab ❌");
+    parts.push(st.s3 ? "Quelle ✅" : "Quelle ❌");
+    parts.push(st.s4 ? "Fläche ✅" : "Fläche ❌");
+    parts.push(st.s5 ? "Regner ✅" : "Regner ❌");
+    el('statusLine').textContent = parts.join(" • ");
   }
 
-  // Background upload (nur einmal oben)
+  // Background upload
   el('fileBg').addEventListener('change', (e)=>{
     const file = e.target.files?.[0];
     if(!file) return;
@@ -229,98 +530,132 @@
       state.bg.h = img.height;
       state.bg.url = url;
       fitImageToView();
-      setTool('scale');
       renderSteps();
       render();
+      // go next
+      setStep(2);
     };
     img.src = url;
   });
 
   function fitImageToView(){
     const rect = canvas.getBoundingClientRect();
-    const vw = rect.width, vh = rect.height;
+    const vw=rect.width, vh=rect.height;
     if(!state.bg.img) return;
-    const sx = (vw*0.9)/state.bg.w;
-    const sy = (vh*0.9)/state.bg.h;
-    view.s = clamp(Math.min(sx,sy),0.2,6);
+    const sx=(vw*0.9)/state.bg.w;
+    const sy=(vh*0.9)/state.bg.h;
+    view.s=clamp(Math.min(sx,sy),0.2,6);
     const cx=state.bg.w/2, cy=state.bg.h/2;
-    view.x = (vw/(2*view.s)) - cx;
-    view.y = (vh/(2*view.s)) - cy;
+    view.x=(vw/(2*view.s)) - cx;
+    view.y=(vh/(2*view.s)) - cy;
   }
 
   el('btnFitView').addEventListener('click', ()=>{ fitImageToView(); render(); });
-  el('btnResetView').addEventListener('click', ()=>{ fitImageToView(); render(); });
 
-  // Maßstab anwenden
-  el('btnApplyScale').addEventListener('click', ()=>{
-    if(!state.scale.a || !state.scale.b) return;
-    const meters = parseFloat(el('scaleMeters').value || "1");
-    const dpx = dist(state.scale.a, state.scale.b);
-    if(meters>0 && dpx>0){
-      state.scale.pxPerMeter = dpx / meters;
-      renderSteps();
-      // Nächster sinnvoller Schritt:
-      setTool('source');
-      render();
-    }
-  });
-
-  // Tool buttons
-  el('toolScale').addEventListener('click', ()=>setTool('scale'));
-  el('toolSource').addEventListener('click', ()=>setTool('source'));
-  el('toolArea').addEventListener('click', ()=>setTool('area'));
-  el('toolCancel').addEventListener('click', ()=>{
+  // Reset all
+  el('btnResetAll').addEventListener('click', ()=>{
+    if(!confirm("Alles wirklich löschen (Bild, Maßstab, Quelle, Fläche, Regner)?")) return;
+    state.bg = { img:null, w:0, h:0, url:null };
+    state.scale = { pxPerMeter:null, a:null, b:null };
+    state.source = null;
+    state.area = null;
+    state.sprinklers = [];
     drawing = { kind:null, pts:[], temp:null };
+    sprPlacing = null;
+    sprDragId = null;
+    view = { x: 20, y: 20, s: 1 };
+    el('fileBg').value = "";
+    hidePopup();
+    setStep(1);
+    renderSteps();
     render();
   });
 
   // Keyboard
   window.addEventListener('keydown', (e)=>{
-    if(e.code==='Space') spacePan = true;
+    if(e.code==='Space') spacePan=true;
     if(e.code==='Escape'){
+      // abort current operation (depends on step)
       drawing = { kind:null, pts:[], temp:null };
-      state.scale.a=null; state.scale.b=null;
-      renderSteps();
+      sprPlacing = null;
+      sprDragId = null;
+      // do not delete saved items, just cancel current action
       render();
     }
   });
   window.addEventListener('keyup', (e)=>{ if(e.code==='Space') spacePan=false; });
 
-  // Mouse
+  // Mouse events
   canvas.addEventListener('mousedown', (e)=>{
     mouse.down=true;
     const m = mousePos(e);
     mouse.last = { x:m.x, y:m.y };
     const w = screenToWorld({ x:m.x, y:m.y });
 
-    // Pan (ohne Tool): Space halten
+    // Pan always via Space
     if(spacePan) return;
 
-    // Tools
-    if(tool==='scale'){
+    // Step 2: Scale
+    if(activeStep===2){
       if(!state.scale.a) state.scale.a = w;
       else if(!state.scale.b) state.scale.b = w;
       else { state.scale.a = w; state.scale.b = null; state.scale.pxPerMeter = null; }
-      renderSteps();
-      render();
+      renderSteps(); render();
       return;
     }
 
-    if(tool==='source'){
-      // Quelle setzen (kein verschieben/drag – wie gewünscht)
-      state.source = { id: uid(), name:"Wasserhahn", x:w.x, y:w.y };
-      renderSteps();
-      // nach Quelle: Fläche
-      setTool('area');
-      render();
+    // Step 3: Source
+    if(activeStep===3){
+      state.source = { id: uid(), name: state.source?.name || "Wasserhahn", x:w.x, y:w.y };
+      renderSteps(); render();
+      popupStep3(); // refresh popup fields
+      // move on automatically
+      setStep(4);
       return;
     }
 
-    if(tool==='area'){
+    // Step 4: Area polygon
+    if(activeStep===4){
+      // start new area replaces old
       if(drawing.kind!=='area'){
         drawing = { kind:'area', pts:[], temp:null };
       }
+
+      // magnetic close: if click near first point and enough points
+      if(drawing.pts.length >= 3){
+        const d0 = Math.hypot(w.x - drawing.pts[0].x, w.y - drawing.pts[0].y);
+        if(d0 <= closeThresholdWorld()){
+          finalizeArea(true);
+          return;
+        }
+      }
+
       drawing.pts.push(w);
+      render();
+      return;
+    }
+
+    // Step 5: Sprinklers
+    if(activeStep===5){
+      if(!state.scale.pxPerMeter){ alert("Bitte erst Maßstab setzen (Schritt 2)."); setStep(2); return; }
+      if(!state.source){ alert("Bitte erst Wasserquelle setzen (Schritt 3)."); setStep(3); return; }
+      if(!state.area || !state.area.pts || state.area.pts.length<3){ alert("Bitte erst Fläche zeichnen (Schritt 4)."); setStep(4); return; }
+
+      // if clicking existing sprinkler => drag it
+      const hit = sprinklerHitTest(w);
+      if(hit){
+        sprDragId = hit;
+        render();
+        return;
+      }
+
+      // placing new sprinkler: hold mouse to preview
+      sprPlacing = {
+        id: uid(),
+        presetKey: sprUI.presetKey,
+        x: w.x, y: w.y,
+        dirDeg: sprUI.dirDeg
+      };
       render();
       return;
     }
@@ -329,11 +664,16 @@
   canvas.addEventListener('mousemove', (e)=>{
     const m = mousePos(e);
     const w = screenToWorld({ x:m.x, y:m.y });
+
+    // preview for drawing
     if(drawing.kind==='area') drawing.temp = w;
 
-    if(!mouse.down){ render(); return; }
+    if(!mouse.down){
+      render();
+      return;
+    }
 
-    // Pan mit Space
+    // Space pan
     if(spacePan){
       const dx = (m.x - mouse.last.x) / view.s;
       const dy = (m.y - mouse.last.y) / view.s;
@@ -343,12 +683,55 @@
       return;
     }
 
+    // Step 5: move placing preview OR drag existing
+    if(activeStep===5){
+      if(sprPlacing){
+        sprPlacing.x = w.x; sprPlacing.y = w.y;
+        render();
+        return;
+      }
+      if(sprDragId){
+        const s = state.sprinklers.find(x=>x.id===sprDragId);
+        if(s){
+          s.x = w.x; s.y = w.y;
+          render();
+        }
+        return;
+      }
+    }
+
     render();
   });
 
-  canvas.addEventListener('mouseup', ()=>{
+  canvas.addEventListener('mouseup', (e)=>{
     mouse.down=false;
     mouse.last=null;
+
+    // finalize sprinkler placement
+    if(activeStep===5 && sprPlacing){
+      // only place if inside area
+      const okInside = state.area?.pts?.length>=3 ? pointInPoly({x:sprPlacing.x,y:sprPlacing.y}, state.area.pts) : true;
+      if(okInside){
+        state.sprinklers.push({ ...sprPlacing });
+        renderSteps();
+      }
+      sprPlacing = null;
+      render();
+      return;
+    }
+
+    // stop dragging existing sprinkler
+    if(activeStep===5 && sprDragId){
+      sprDragId = null;
+      render();
+      return;
+    }
+  });
+
+  canvas.addEventListener('dblclick', ()=>{
+    if(activeStep===4 && drawing.kind==='area' && drawing.pts.length>=3){
+      finalizeArea(false);
+    }
   });
 
   canvas.addEventListener('wheel', (e)=>{
@@ -363,33 +746,61 @@
     render();
   }, {passive:false});
 
-  canvas.addEventListener('dblclick', ()=>{
-    if(tool==='area' && drawing.kind==='area' && drawing.pts.length>=3){
-      // Fläche übernehmen (wir nutzen erstmal nur eine)
-      state.areas = [{
-        id: uid(),
-        name: "Fläche 1",
-        pts: [...drawing.pts]
-      }];
-      drawing = { kind:null, pts:[], temp:null };
-      renderSteps();
-      render();
-    }
-  });
-
-  // Reset
-  el('btnResetAll').addEventListener('click', ()=>{
-    if(!confirm("Alles wirklich löschen (Bild, Maßstab, Quelle, Fläche)?")) return;
-    state.bg = { img:null, w:0, h:0, url:null };
-    state.scale = { pxPerMeter:null, a:null, b:null };
-    state.source = null;
-    state.areas = [];
+  function finalizeArea(forceClose){
+    // save
+    state.area = {
+      id: uid(),
+      name: "Fläche 1",
+      pts: [...drawing.pts]
+    };
     drawing = { kind:null, pts:[], temp:null };
-    view = { x: 20, y: 20, s: 1 };
-    el('fileBg').value = "";
-    renderSteps();
-    render();
-  });
+    renderSteps(); render();
+    // go next
+    setStep(5);
+  }
+
+  // Auto sprinkler layout (simple head-to-head demo)
+  function autoLayoutSprinklers(){
+    const area = state.area;
+    const pts = area.pts;
+    const bbox = polyBBox(pts);
+
+    const preset = presetByKey(sprUI.presetKey);
+    const rPx = preset.radiusM * state.scale.pxPerMeter;
+
+    // spacing: slightly less than diameter -> moderate overlap (not too much)
+    const spacing = rPx * 1.75; // 2.0 would be no overlap; 1.75 = moderate
+
+    const placed = [];
+    const tooClose = (p)=>{
+      for(const q of placed){
+        if(Math.hypot(p.x-q.x,p.y-q.y) < spacing*0.85) return true;
+      }
+      return false;
+    };
+
+    // clear existing (demo: we add to existing? prefer replace)
+    if(!confirm("Auto-Regner: aktuelle Regner ersetzen? (OK = ersetzen, Abbrechen = hinzufügen)")){
+      // add mode
+    } else {
+      state.sprinklers = [];
+    }
+
+    for(let y=bbox.minY; y<=bbox.maxY; y+=spacing){
+      for(let x=bbox.minX; x<=bbox.maxX; x+=spacing){
+        const p={x,y};
+        if(!pointInPoly(p, pts)) continue;
+        if(tooClose(p)) continue;
+        placed.push(p);
+        state.sprinklers.push({
+          id: uid(),
+          presetKey: preset.key,
+          x: p.x, y: p.y,
+          dirDeg: sprUI.dirDeg
+        });
+      }
+    }
+  }
 
   // Drawing helpers
   function drawLine(a,b,color,lw){
@@ -445,54 +856,106 @@
     ctx.beginPath(); ctx.arc(p.x,p.y,16,0,Math.PI*2); ctx.stroke();
     ctx.font='12px ui-sans-serif,system-ui';
     ctx.fillStyle='rgba(230,237,243,.9)';
-    ctx.fillText(`${s.name}`, p.x+10, p.y-18);
+    ctx.fillText(`${s.name || "Wasserhahn"}`, p.x+10, p.y-18);
+    ctx.restore();
+  }
+
+  function drawSprinkler(s, isPreview=false){
+    const preset = presetByKey(s.presetKey);
+    const p = worldToScreen({x:s.x,y:s.y});
+    const rpx = state.scale.pxPerMeter ? (preset.radiusM * state.scale.pxPerMeter) : 80;
+    const rr = rpx * view.s;
+
+    const arc = (preset.arcDeg||360) * Math.PI/180;
+    const dir = ((s.dirDeg||0) * Math.PI/180);
+    const start = dir - arc/2;
+    const end = dir + arc/2;
+
+    ctx.save();
+    ctx.beginPath();
+    ctx.moveTo(p.x,p.y);
+    ctx.arc(p.x,p.y,rr,start,end);
+    ctx.closePath();
+    ctx.fillStyle = isPreview ? 'rgba(76,201,240,.10)' : 'rgba(76,201,240,.08)';
+    ctx.fill();
+    ctx.strokeStyle = isPreview ? 'rgba(76,201,240,.90)' : 'rgba(76,201,240,.55)';
+    ctx.lineWidth = isPreview ? 2 : 1.5;
+    ctx.stroke();
+
+    ctx.fillStyle='rgba(76,201,240,.95)';
+    ctx.beginPath(); ctx.arc(p.x,p.y,4.5,0,Math.PI*2); ctx.fill();
+
+    ctx.font='12px ui-sans-serif,system-ui';
+    ctx.fillStyle='rgba(230,237,243,.9)';
+    ctx.textAlign='left'; ctx.textBaseline='top';
+    const label = `${preset.name} • ${preset.radiusM.toFixed(1)}m • ${preset.arcDeg}°`;
+    ctx.fillText(label, p.x+8, p.y+6);
     ctx.restore();
   }
 
   // Render
   function render(){
-    // ✅ clear auf CSS-Größe (sauber mit dpr-transform)
+    // clear to CSS size (safe with dpr transform)
     const r = canvas.getBoundingClientRect();
     ctx.clearRect(0,0,r.width,r.height);
 
+    // background
     if(state.bg.img){
       const p0=worldToScreen({x:0,y:0});
       ctx.drawImage(state.bg.img, p0.x, p0.y, state.bg.w*view.s, state.bg.h*view.s);
     }
 
-    // Fläche (final)
-    for(const a of state.areas){
-      if(a.pts?.length>=3){
-        drawPoly(a.pts,'rgba(76,201,240,.14)','rgba(76,201,240,.95)',2,true,a.name);
+    // area final
+    if(state.area?.pts?.length>=3){
+      drawPoly(state.area.pts,'rgba(76,201,240,.12)','rgba(76,201,240,.95)',2,true,state.area.name);
+    }
+
+    // area drawing preview
+    if(activeStep===4 && drawing.kind==='area' && drawing.pts.length){
+      const pts = drawing.temp ? [...drawing.pts, drawing.temp] : drawing.pts;
+      drawPoly(pts,'rgba(76,201,240,.05)','rgba(76,201,240,1)',2,false,null);
+      drawPoint(drawing.pts[0],'rgba(76,201,240,1)',6);
+
+      // magnetic hint
+      if(drawing.temp && drawing.pts.length>=3){
+        const d0 = Math.hypot(drawing.temp.x - drawing.pts[0].x, drawing.temp.y - drawing.pts[0].y);
+        if(d0 <= closeThresholdWorld()){
+          drawLabel(drawing.pts[0], "Klick = schließen", 'rgba(76,201,240,.95)');
+        }
       }
     }
 
-    // Fläche (preview)
-    if(drawing.kind==='area' && drawing.pts.length){
-      const pts = drawing.temp ? [...drawing.pts, drawing.temp] : drawing.pts;
-      drawPoly(pts,'rgba(76,201,240,.06)','rgba(76,201,240,1)',2,false,null);
-      drawPoint(drawing.pts[0],'rgba(76,201,240,1)',6);
-      drawLabel(drawing.temp || drawing.pts[drawing.pts.length-1], "Doppelklick = fertig", 'rgba(76,201,240,.95)');
-    }
-
-    // Maßstab Punkte
+    // scale points + line
     if(state.scale.a) drawPoint(state.scale.a,'rgba(251,191,36,.95)',6);
     if(state.scale.b) drawPoint(state.scale.b,'rgba(251,191,36,.95)',6);
     if(state.scale.a && state.scale.b){
       drawLine(state.scale.a,state.scale.b,'rgba(251,191,36,.9)',2);
-      const dpx = dist(state.scale.a,state.scale.b);
+      const dpx=dist(state.scale.a,state.scale.b);
       const txt = state.scale.pxPerMeter ? `${(dpx/state.scale.pxPerMeter).toFixed(2)} m` : `${dpx.toFixed(0)} px`;
       drawLabel({x:(state.scale.a.x+state.scale.b.x)/2,y:(state.scale.a.y+state.scale.b.y)/2}, txt, 'rgba(251,191,36,.95)');
     }
 
-    // Quelle
+    // source
     if(state.source) drawSource(state.source);
+
+    // sprinklers
+    for(const s of state.sprinklers) drawSprinkler(s, false);
+
+    // placing preview
+    if(activeStep===5 && sprPlacing) drawSprinkler(sprPlacing, true);
+
+    // dragging highlight
+    if(activeStep===5 && sprDragId){
+      const s = state.sprinklers.find(x=>x.id===sprDragId);
+      if(s) drawPoint({x:s.x,y:s.y}, 'rgba(76,201,240,1)', 10);
+    }
   }
 
+  // Init
   function init(){
     fitCanvas();
     renderSteps();
-    setTool('scale'); // Start: Maßstab-Tool (nach Upload sowieso)
+    setStep(1); // no popup
     render();
   }
   init();
